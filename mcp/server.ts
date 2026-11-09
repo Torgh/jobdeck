@@ -177,7 +177,7 @@ const days = (iso?: string) => (iso ? Math.floor((Date.now() - Date.parse(iso)) 
 
 function oneLine(j: Job): string {
   const parts = [
-    `[${j.id}] ${j.title} @ ${j.company}`,
+    `${j.demo ? "[TEST] " : ""}[${j.id}] ${j.title} @ ${j.company}`,
     [j.workMode && WORK_MODE_LABEL[j.workMode], j.location].filter(Boolean).join(", "),
     j.salaries[0] ? formatSalary(j.salaries[0]) : "bez widełek",
     j.fit ? `fit ${j.fit.score}` : j.stackMatch != null ? `stack ${j.stackMatch}%` : "",
@@ -336,7 +336,8 @@ server.registerTool(
     const unrated = jobs.filter((j) => j.status === "new" && !j.fit);
     const last = db.scans.at(-1);
     const todo = todos(jobs, profile.cv?.hash, Date.now(), db.companies);
-    const watch = jobs.filter((j) => ["applied", "interview", "offer"].includes(j.status) || (j.status === "applying" && j.appliedAt));
+    const watch = jobs.filter((j) => !j.demo && (["applied", "interview", "offer"].includes(j.status) || (j.status === "applying" && j.appliedAt)));
+    const demo = jobs.filter((j) => j.demo).length;
     const missing = [
       !profile.cv && "brak CV",
       !profile.keywords.length && "brak fraz wyszukiwania",
@@ -351,6 +352,9 @@ server.registerTool(
             .join(", ")}`
         : "Jeszcze nie skanowano.",
       missing.length ? `Do uzupełnienia w profilu: ${missing.join(", ")}` : "",
+      demo
+        ? `Dane testowe na tablicy: ${demo} ofert [TEST] fikcyjnych firm – nie oceniaj ich, nie szukaj ich w Gmailu ani w sieci. Usunięcie: Ustawienia → Dane testowe albo bun run demo:clear.`
+        : "",
       todo.length ? `\nDo ogarnięcia:\n${todo.map((t) => `- [${t.jobId}] ${t.text}`).join("\n")}` : "Do ogarnięcia: nic.",
       watch.length
         ? `\nMail – aplikacje do obserwowania (sprawdzono skrzynkę: ${db.mailCheckedAt ? db.mailCheckedAt.slice(0, 16).replace("T", " ") : "nigdy"}):\n${watch

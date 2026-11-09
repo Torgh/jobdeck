@@ -64,6 +64,13 @@ Dane (oferty, profil, CV) są w `JOBDECK_HOME`, poza repozytorium; nic osobisteg
 
 Skan bez Claude'a: przycisk **Skanuj portale** na tablicy albo `bun run scan` (np. z Harmonogramu zadań Windows).
 
+### Dane testowe
+
+Chcesz zobaczyć tablicę w akcji, zanim zbierzesz prawdziwe oferty? **Ustawienia → Dane testowe → Wczytaj**
+(albo `bun run demo`). Dochodzi 9 ofert fikcyjnych firm z dopiskiem „(test)” na każdym etapie – z ocenami,
+follow-upem, rozmową, negocjacjami i planem nauki. Usuwasz je tym samym panelem, banerem na ekranie Dziś albo
+`bun run demo:clear`; prawdziwe oferty, profil i CV zostają. Claude widzi je w MCP jako `[TEST]` i pomija.
+
 ### Pierwsze kroki
 
 1. **Ustawienia → Twoje CV**: wgraj PDF (z tekstem, nie skan) albo DOCX.

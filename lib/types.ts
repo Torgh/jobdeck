@@ -200,6 +200,8 @@ export interface Job {
   documents?: Partial<Record<DocKind, AppDoc>>;
   /** What the company actually proposed (monthly PLN: B2B net, UoP gross), for the negotiation panel. */
   offered?: { monthly: number; contract: "b2b" | "uop" };
+  /** Test data (lib/demo.ts): removed together on request, never mixed with real offers. */
+  demo?: boolean;
 }
 
 export interface CvInfo {
@@ -287,6 +289,8 @@ export interface CompanyInfo {
   flags: string[];
   sources: { title: string; url: string }[];
   researchedAt: string;
+  /** Part of the test data. */
+  demo?: boolean;
 }
 
 /** One skill to learn, chosen by Claude from the gaps that recur in the ratings. */
@@ -307,6 +311,8 @@ export interface LearningPlan {
   createdAt: string;
   /** What it was based on, e.g. "38 ocenionych ofert z 90 dni". */
   basedOn?: string;
+  /** Part of the test data. */
+  demo?: boolean;
 }
 
 export interface Db {

@@ -10,6 +10,7 @@ import { formatSalary } from "@/lib/salary";
 import { STATUS_LABEL, WORK_MODE_LABEL, type Job, type Status } from "@/lib/types";
 import type { BoardData } from "@/lib/view";
 import type { JobUpdate } from "./api";
+import { DemoBanner } from "./DemoData";
 import type { AppTab } from "./Nav";
 import { Icon, ScoreRing, type IconName } from "./ui";
 
@@ -49,6 +50,7 @@ export function Today({
   onOpen,
   onTab,
   onUpdate,
+  onReload,
 }: {
   data: BoardData;
   pay: B2bSettings;
@@ -56,12 +58,14 @@ export function Today({
   onOpen: (id: string) => void;
   onTab: (t: AppTab) => void;
   onUpdate: (ids: string[], patch: JobUpdate, undoLabel?: string) => void;
+  onReload: () => void;
 }) {
   const [now] = useState(() => Date.parse(data.now));
   const jobs = data.jobs;
   const byId = new Map(jobs.map((j) => [j.id, j]));
   const fresh = jobs.filter((j) => j.status === "new");
   const unrated = fresh.filter((j) => !j.fit).length;
+  const demo = jobs.filter((j) => j.demo).length;
 
   // Research is Claude's job: one line for all the companies instead of one per company.
   const research = data.todos.filter((t) => t.kind === "research");
@@ -120,6 +124,8 @@ export function Today({
           {last ? `Ostatni skan ${agoTime(last.at)}: ${last.added} nowych ofert. ` : "Jeszcze nie było skanu. "}
           {data.mailCheckedAt ? `Odpowiedzi z Gmaila sprawdzone ${agoTime(data.mailCheckedAt)}.` : "Odpowiedzi z Gmaila jeszcze niesprawdzone – napisz w Claude „co nowego w JobDeck?”."}
         </p>
+
+        {demo > 0 && <DemoBanner count={demo} onRemoved={onReload} />}
 
         {onboarding}
 

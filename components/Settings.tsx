@@ -15,6 +15,7 @@ import {
 } from "@/lib/types";
 import type { ProfileView } from "@/lib/view";
 import { api } from "./api";
+import { DemoDataPanel } from "./DemoData";
 import { TopNav } from "./Nav";
 
 /** Text fields hold the comma-separated lists while the user types. */
@@ -294,6 +295,8 @@ export function Settings() {
             </label>
           </div>
         </div>
+
+        <DemoDataPanel />
 
         <div className="savebar">
           {msg && <span className={msg.ok ? "ok" : "error"}>{msg.text}</span>}
