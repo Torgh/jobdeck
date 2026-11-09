@@ -12,7 +12,7 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 /** A change to a card; nextStep null clears it. */
-export type JobUpdate = Partial<Omit<Job, "nextStep">> & { nextStep?: Job["nextStep"] | null };
+export type JobUpdate = Partial<Omit<Job, "nextStep" | "offered">> & { nextStep?: Job["nextStep"] | null; offered?: Job["offered"] | null };
 
 const POLL_MS = 8000;
 

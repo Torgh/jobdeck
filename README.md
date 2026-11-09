@@ -68,6 +68,18 @@ Skan bez Claude'a: przycisk **Skanuj portale** na tablicy albo `bun run scan` (n
    szybki wskaźnik „% technologii” na kartach.
 4. Na LinkedInie ustaw alerty ofert pracy (codziennie, e-mail), to samo na Pracuj.pl.
 
+### Po wysłaniu aplikacji
+
+- **Follow-up** – po 7 dniach ciszy panel oferty podpowiada przypomnienie: gotowy szkic (PL/EN, neutralny
+  płciowo) do skopiowania albo otwarcia w poczcie, potem „Zapisz jako wysłane”. Po 2 przypomnieniach bez odpowiedzi
+  JobDeck proponuje zamknięcie.
+- **Przygotowanie do rozmowy** – w kolumnie Rozmowy: „przygotuj mnie do rozmowy <id>”. Claude zapisuje dokument
+  z pytaniami technicznymi, Twoimi przykładami (STAR), pytaniami do firmy i kwotą do podania (PDF / DOCX).
+- **Negocjacje** – na etapie Rozmowy / Oferta panel porównuje propozycję firmy z widełkami, rynkiem dla poziomu
+  i Twoim minimum, i podaje kwotę do zaproponowania z argumentami oraz „na rękę”.
+- **Plan nauki** – „zrób plan nauki z braków w JobDeck”: 3–5 najczęstszych braków z ocen, do każdego mały projekt
+  do CV i materiały; na stronie Rynek z odhaczaniem.
+
 ## Ocena dopasowania
 
 Claude porównuje treść CV z pełnym opisem oferty i przyznaje punkty (0–100):

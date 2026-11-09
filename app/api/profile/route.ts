@@ -16,7 +16,7 @@ export async function GET() {
 }
 
 const EDITABLE = [
-  "keywords", "locations", "workModes", "seniority", "contracts", "minMonthlyPln",
+  "keywords", "locations", "modeLocations", "workModes", "seniority", "contracts", "minMonthlyPln",
   "excludeKeywords", "excludeCompanies", "sources", "skills", "about", "onboarding", "pay",
 ] as const;
 

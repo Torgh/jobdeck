@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Funnel, Insights, SalaryBand } from "@/lib/insights";
-import { SENIORITY_LABEL, SOURCE_LABEL, type Seniority } from "@/lib/types";
+import { ago } from "@/lib/format";
+import { SENIORITY_LABEL, SOURCE_LABEL, type LearningPlan, type Seniority } from "@/lib/types";
 import { api } from "./api";
 
 const k = (v: number) => `${(v / 1000).toLocaleString("pl-PL", { maximumFractionDigits: 1 })}k`;
@@ -11,15 +12,17 @@ const pct = (v: number) => `${Math.round(v * 100)}%`;
 
 const CONTRACT_NAME = { b2b: "B2B netto", uop: "UoP brutto" } as const;
 
+type MarketData = { insights: Insights; funnel: Funnel; minMonthlyPln: number | null; learningPlan: LearningPlan | null };
+
 /** What the collected offers say: salaries by level, skills in demand, recurring gaps, sources. */
 export function Market() {
   const [days, setDays] = useState(90);
-  const [data, setData] = useState<{ insights: Insights; funnel: Funnel; minMonthlyPln: number | null }>();
+  const [data, setData] = useState<MarketData>();
   const [error, setError] = useState<string>();
 
   useEffect(() => {
     let alive = true;
-    api<{ insights: Insights; funnel: Funnel; minMonthlyPln: number | null }>(`/api/insights?days=${days}`)
+    api<MarketData>(`/api/insights?days=${days}`)
       .then((d) => alive && setData(d))
       .catch((e) => alive && setError((e as Error).message));
     return () => {
@@ -81,6 +84,8 @@ export function Market() {
               <SkillsChart skills={ins.skills.slice(0, 15)} total={ins.total} />
               <GapsChart gaps={ins.gaps} />
             </div>
+
+            <LearningSection plan={data.learningPlan} hasGaps={ins.gaps.length > 0} onChange={(learningPlan) => setData({ ...data, learningPlan })} />
 
             <section className="panel">
               <h2>Źródła</h2>
@@ -361,6 +366,70 @@ function FunnelSection({ funnel }: { funnel: Funnel }) {
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+/** Claude's plan: the recurring gaps worth closing, each with a small project that proves it in the CV. */
+function LearningSection({ plan, hasGaps, onChange }: { plan: LearningPlan | null; hasGaps: boolean; onChange: (p: LearningPlan) => void }) {
+  const [error, setError] = useState<string>();
+  const toggle = async (skill: string, done: boolean) => {
+    try {
+      const r = await api<{ plan: LearningPlan }>("/api/learning", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ skill, done }) });
+      onChange(r.plan);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+  if (!plan?.items.length) {
+    return (
+      <section className="panel">
+        <h2>Plan nauki</h2>
+        <p className="muted">
+          {hasGaps ? (
+            <>
+              Napisz w Claude: <i>„zrób plan nauki z braków w JobDeck”</i>. Wybierze 3–5 najczęstszych braków i do każdego zaproponuje mały projekt, który pokażesz w CV, oraz sprawdzone materiały.
+            </>
+          ) : (
+            "Plan powstanie z braków, które Claude wskaże w ocenach ofert – najpierw poproś o ocenę nowych ofert."
+          )}
+        </p>
+      </section>
+    );
+  }
+  const done = plan.items.filter((i) => i.done).length;
+  return (
+    <section className="panel">
+      <h2>Plan nauki</h2>
+      <p className="hint">
+        {done}/{plan.items.length} zrobione · plan z {ago(plan.createdAt)}
+        {plan.basedOn && ` · na podstawie: ${plan.basedOn}`}. Gdy skończysz projekt, dopisz go do CV – Claude uwzględni go w kolejnych ocenach.
+      </p>
+      <ol className="learn">
+        {plan.items.map((i) => (
+          <li key={i.skill} className={i.done ? "done" : ""}>
+            <label className="learn-head">
+              <input type="checkbox" checked={!!i.done} onChange={(e) => toggle(i.skill, e.target.checked)} />
+              <b>{i.skill}</b>
+              {i.effort && <span className="chip">{i.effort}</span>}
+            </label>
+            <p className="muted small">{i.why}</p>
+            <p>
+              <span className="learn-label">Projekt:</span> {i.project}
+            </p>
+            {i.resources.length > 0 && (
+              <div className="small sources">
+                {i.resources.map((r) => (
+                  <a key={r.url} href={r.url} target="_blank" rel="noreferrer">
+                    {r.title} ↗
+                  </a>
+                ))}
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
+      {error && <p className="error small">{error}</p>}
     </section>
   );
 }

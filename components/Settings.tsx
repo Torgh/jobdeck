@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { agoTime, splitList } from "@/lib/format";
+import { citiesFor } from "@/lib/jobs";
 import {
   CONTRACT_LABEL,
   SENIORITIES,
@@ -19,7 +20,8 @@ import { api } from "./api";
 /** Text fields hold the comma-separated lists while the user types. */
 interface Form {
   keywords: string;
-  locations: string;
+  hybridCities: string;
+  officeCities: string;
   excludeKeywords: string;
   excludeCompanies: string;
   skills: string;
@@ -33,7 +35,8 @@ interface Form {
 
 const toForm = (p: ProfileView): Form => ({
   keywords: p.keywords.join(", "),
-  locations: p.locations.join(", "),
+  hybridCities: citiesFor(p, "hybrid").join(", "),
+  officeCities: citiesFor(p, "office").join(", "),
   excludeKeywords: p.excludeKeywords.join(", "),
   excludeCompanies: p.excludeCompanies.join(", "),
   skills: p.skills.join(", "),
@@ -79,7 +82,8 @@ export function Settings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           keywords: splitList(form.keywords),
-          locations: splitList(form.locations),
+          modeLocations: { hybrid: splitList(form.hybridCities), office: splitList(form.officeCities) },
+          locations: [...new Set([...splitList(form.hybridCities), ...splitList(form.officeCities)])],
           excludeKeywords: splitList(form.excludeKeywords),
           excludeCompanies: splitList(form.excludeCompanies),
           skills: splitList(form.skills),
@@ -197,19 +201,33 @@ export function Settings() {
             <span>Frazy</span>
             <input type="text" value={form.keywords} onChange={(e) => set("keywords", e.target.value)} placeholder="java, kotlin, backend" />
           </label>
-          <label className="field">
-            <span>Miasta</span>
-            <input type="text" value={form.locations} onChange={(e) => set("locations", e.target.value)} placeholder="Warszawa, Kraków (puste = cała Polska; zdalne zawsze)" />
-          </label>
           <div className="field">
-            <span>Tryb pracy</span>
-            <div className="checks">
-              {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => (
-                <label key={m}>
-                  <input type="checkbox" checked={form.workModes.includes(m)} onChange={() => set("workModes", toggle(form.workModes, m))} />
-                  {WORK_MODE_LABEL[m]}
-                </label>
-              ))}
+            <span>Tryb pracy i miasta</span>
+            <div className="modes">
+              {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => {
+                const on = form.workModes.includes(m);
+                const key = m === "hybrid" ? "hybridCities" : "officeCities";
+                return (
+                  <div key={m} className="mode-row">
+                    <label>
+                      <input type="checkbox" checked={on} onChange={() => set("workModes", toggle(form.workModes, m))} />
+                      {WORK_MODE_LABEL[m]}
+                    </label>
+                    {m === "remote" ? (
+                      <span className="muted small">z całej Polski</span>
+                    ) : (
+                      <input
+                        type="text"
+                        value={form[key]}
+                        disabled={!on}
+                        onChange={(e) => set(key, e.target.value)}
+                        placeholder="np. Wrocław (puste = cała Polska)"
+                        aria-label={`Miasta – ${WORK_MODE_LABEL[m]}`}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div className="field">

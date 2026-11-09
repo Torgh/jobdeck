@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeFunnel, computeInsights, gapKey, quantile } from "./insights";
+import { computeFunnel, computeInsights, gapKey, negotiation, quantile, type SalaryBand } from "./insights";
 import type { Job } from "./types";
 
 const NOW = Date.parse("2026-11-10T12:00:00Z");
@@ -114,5 +114,30 @@ describe("computeFunnel", () => {
     expect(f.weekly).toHaveLength(8);
     expect(f.weekly.at(-1)).toEqual({ week: "2026-11-09", applied: 0 });
     expect(f.weekly.find((w) => w.week === "2026-11-02")?.applied).toBe(2);
+  });
+});
+
+describe("negotiation", () => {
+  const bands: SalaryBand[] = [
+    { contract: "b2b", seniority: "senior", n: 12, p25: 22000, median: 25000, p75: 28000 },
+    { contract: "b2b", seniority: "all", n: 30, p25: 18000, median: 22000, p75: 26000 },
+  ];
+
+  it("asks for the top of the range when the proposal is below it", () => {
+    const [n] = negotiation({ seniority: "senior", salaries: [b2b(20000, 27000)], offered: { monthly: 23000, contract: "b2b" } }, bands);
+    expect(n).toMatchObject({ contract: "b2b", offered: 23000, ask: 27000, position: "p25_median" });
+    expect(n.band?.seniority).toBe("senior");
+    expect(n.reasons[0]).toContain("27k");
+  });
+
+  it("raises a low offer to the market median for the level, and to the user's minimum", () => {
+    expect(negotiation({ seniority: "senior", salaries: [b2b(15000, 20000)] }, bands)[0]).toMatchObject({ ask: 25000, position: "below_p25" });
+    expect(negotiation({ seniority: "senior", salaries: [b2b(15000, 20000)] }, bands, { minMonthly: 26200 })[0].ask).toBe(26500);
+  });
+
+  it("counters a proposal already at the top with a small margin, and falls back to all levels", () => {
+    expect(negotiation({ seniority: "senior", salaries: [b2b(25000, 30000)], offered: { monthly: 30000, contract: "b2b" } }, bands)[0].ask).toBe(32500);
+    expect(negotiation({ seniority: "junior", salaries: [] , offered: { monthly: 15000, contract: "b2b" } }, bands)[0]).toMatchObject({ ask: 22000 });
+    expect(negotiation({ salaries: [] }, bands)).toEqual([]);
   });
 });

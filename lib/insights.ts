@@ -226,3 +226,92 @@ export function computeFunnel(jobs: Job[], now = Date.now()): Funnel {
     weekly,
   };
 }
+
+/** What to ask for in a salary talk, for one contract type of an offer. */
+export interface Negotiation {
+  contract: "b2b" | "uop";
+  /** The amount the company proposed (job.offered), if the user recorded it. */
+  offered?: number;
+  /** The offer's published range (monthly PLN). */
+  range?: { min?: number; max?: number };
+  /** The market for the offer's level (or all levels when there are too few offers at that level). */
+  band?: SalaryBand;
+  /** Where the company's figure (proposal, else the range top) sits against that market. */
+  position?: "below_p25" | "p25_median" | "median_p75" | "above_p75";
+  /** Suggested figure to ask for (monthly PLN, rounded up to 500). */
+  ask: number;
+  /** Polish arguments behind the figure, strongest first. */
+  reasons: string[];
+}
+
+export const POSITION_LABEL: Record<NonNullable<Negotiation["position"]>, string> = {
+  below_p25: "poniżej rynku (dolna ćwiartka)",
+  p25_median: "poniżej mediany rynku",
+  median_p75: "powyżej mediany rynku",
+  above_p75: "w górnej ćwiartce rynku",
+};
+
+const up500 = (v: number) => Math.ceil(v / 500) * 500;
+const fmtK = (v: number) => `${(v / 1000).toLocaleString("pl-PL", { maximumFractionDigits: 1 })}k`;
+
+/**
+ * Arguments and a figure for the salary talk: the offer's own range, what the company proposed,
+ * the market for the level from the collected offers, and the user's minimum.
+ */
+export function negotiation(
+  job: Pick<Job, "salaries" | "seniority" | "offered">,
+  bands: SalaryBand[],
+  opts: { minMonthly?: number } = {},
+): Negotiation[] {
+  const contracts = new Set<"b2b" | "uop">();
+  if (job.offered) contracts.add(job.offered.contract);
+  for (const s of job.salaries) {
+    if (s.contract === "b2b" || (s.contract === "uop" && s.gross !== false)) contracts.add(s.contract);
+  }
+  const out: Negotiation[] = [];
+  for (const contract of contracts) {
+    const sal = job.salaries.find((s) => s.contract === contract && s.monthlyPln && (s.monthlyPln.min != null || s.monthlyPln.max != null));
+    const range = sal?.monthlyPln;
+    const offered = job.offered?.contract === contract ? job.offered.monthly : undefined;
+    const atLevel = job.seniority && bands.find((b) => b.contract === contract && b.seniority === job.seniority);
+    const band = atLevel || bands.find((b) => b.contract === contract && b.seniority === "all");
+    const base = offered ?? range?.max ?? range?.min;
+    if (base == null && !band) continue;
+    const what = contract === "b2b" ? "B2B netto" : "UoP brutto";
+    const levelName = atLevel ? `poziomu ${job.seniority}` : "wszystkich poziomów";
+    const reasons: string[] = [];
+    let ask = base ?? band!.median;
+    if (base == null && band) {
+      ask = Math.max(band.median, (band.median + band.p75) / 2);
+      reasons.push(`Oferta nie podaje widełek – rynek ${levelName} (${what}): mediana ${fmtK(band.median)}, górna ćwiartka od ${fmtK(band.p75)} (n=${band.n}). Podaj kwotę między nimi.`);
+    }
+
+    if (offered != null && range?.max != null && offered < range.max) {
+      ask = Math.max(ask, range.max);
+      reasons.push(`Firma sama opublikowała widełki do ${fmtK(range.max)} – propozycja ${fmtK(offered)} jest poniżej ich górnej granicy.`);
+    }
+    if (band && ask < band.median) {
+      ask = band.median;
+      reasons.push(`Mediana ofert ${levelName} (${what}) to ${fmtK(band.median)} (n=${band.n}); połowa ofert płaci ${fmtK(band.p25)}–${fmtK(band.p75)}.`);
+    }
+    if (opts.minMonthly && ask < opts.minMonthly) {
+      ask = opts.minMonthly;
+      reasons.push(`Twoje minimum to ${fmtK(opts.minMonthly)} – poniżej nie warto schodzić bez innych korzyści.`);
+    }
+    if (base != null && ask === base) {
+      if (offered != null) {
+        ask = offered * 1.07;
+        reasons.push("Propozycja jest już w górze widełek / rynku – kontroferta ok. 5–10% wyżej to typowy, bezpieczny margines.");
+      } else if (range?.max != null) {
+        reasons.push("Celuj w górną granicę widełek – firma ją przewidziała w budżecie.");
+      }
+    }
+    if (band && base != null && ask >= band.p75) reasons.push(`Kwota jest w górnej ćwiartce rynku (≥ ${fmtK(band.p75)}) – uzasadnij ją konkretnymi osiągnięciami.`);
+
+    const ref = base;
+    const position =
+      band && ref != null ? (ref < band.p25 ? "below_p25" : ref < band.median ? "p25_median" : ref <= band.p75 ? "median_p75" : "above_p75") : undefined;
+    out.push({ contract, offered, range, band, position, ask: up500(ask), reasons });
+  }
+  return out;
+}

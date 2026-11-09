@@ -98,11 +98,12 @@ export interface Fit {
 }
 
 /** Something that happened with an application: a status change, an e-mail from the company, a note. */
-export const EVENT_KINDS = ["status", "sent", "reply", "interview_invite", "task", "rejection", "offer", "note"] as const;
+export const EVENT_KINDS = ["status", "sent", "follow_up", "reply", "interview_invite", "task", "rejection", "offer", "note"] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 export const EVENT_LABEL: Record<EventKind, string> = {
   status: "Zmiana etapu",
   sent: "Wysłano aplikację",
+  follow_up: "Przypomnienie (follow-up)",
   reply: "Odpowiedź",
   interview_invite: "Zaproszenie na rozmowę",
   task: "Zadanie rekrutacyjne",
@@ -113,6 +114,7 @@ export const EVENT_LABEL: Record<EventKind, string> = {
 export const EVENT_ICON: Record<EventKind, string> = {
   status: "→",
   sent: "📤",
+  follow_up: "🔔",
   reply: "✉️",
   interview_invite: "📅",
   task: "🧩",
@@ -139,9 +141,9 @@ export interface AppDoc {
   language?: "pl" | "en";
 }
 
-export const DOC_KINDS = ["cv", "letter"] as const;
+export const DOC_KINDS = ["cv", "letter", "prep"] as const;
 export type DocKind = (typeof DOC_KINDS)[number];
-export const DOC_LABEL: Record<DocKind, string> = { cv: "CV", letter: "List motywacyjny" };
+export const DOC_LABEL: Record<DocKind, string> = { cv: "CV", letter: "List motywacyjny", prep: "Przygotowanie do rozmowy" };
 
 export interface JobLink {
   source: SourceId;
@@ -194,8 +196,10 @@ export interface Job {
   nextStep?: { date?: string; text: string };
   /** The application's history, oldest first. */
   events?: JobEvent[];
-  /** CV and cover letter tailored for this offer. */
+  /** CV, cover letter and interview preparation tailored for this offer. */
   documents?: Partial<Record<DocKind, AppDoc>>;
+  /** What the company actually proposed (monthly PLN: B2B net, UoP gross), for the negotiation panel. */
+  offered?: { monthly: number; contract: "b2b" | "uop" };
 }
 
 export interface CvInfo {
@@ -208,8 +212,10 @@ export interface CvInfo {
 export interface Profile {
   /** Search phrases sent to the portals ("java", "kotlin backend"). */
   keywords: string[];
-  /** Cities; remote offers are always kept. Empty = whole Poland. */
+  /** Cities; remote offers are always kept. Empty = whole Poland. Fallback for modes without their own list. */
   locations: string[];
+  /** Cities per on-site mode (e.g. hybrid only in Wrocław); empty list = whole Poland. Remote is never limited. */
+  modeLocations?: Partial<Record<"hybrid" | "office", string[]>>;
   workModes: WorkMode[];
   seniority: Seniority[];
   contracts: Contract[];
@@ -283,6 +289,26 @@ export interface CompanyInfo {
   researchedAt: string;
 }
 
+/** One skill to learn, chosen by Claude from the gaps that recur in the ratings. */
+export interface LearningItem {
+  skill: string;
+  /** Why it is worth it: how many (good) offers ask for it. */
+  why: string;
+  /** A small project that shows the skill in the CV / on GitHub. */
+  project: string;
+  resources: { title: string; url: string }[];
+  /** "weekend", "2–3 tygodnie"… */
+  effort?: string;
+  done?: boolean;
+}
+
+export interface LearningPlan {
+  items: LearningItem[];
+  createdAt: string;
+  /** What it was based on, e.g. "38 ocenionych ofert z 90 dni". */
+  basedOn?: string;
+}
+
 export interface Db {
   version: number;
   jobs: Record<string, Job>;
@@ -291,6 +317,7 @@ export interface Db {
   companies?: Record<string, CompanyInfo>;
   /** Until when Claude has gone through the mailbox for replies from employers. */
   mailCheckedAt?: string;
+  learningPlan?: LearningPlan;
 }
 
 export const DEFAULT_PROFILE: Profile = {

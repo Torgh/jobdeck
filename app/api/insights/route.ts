@@ -8,8 +8,9 @@ export async function GET(req: NextRequest) {
   return handle(async () => {
     const days = Number(req.nextUrl.searchParams.get("days") ?? 90);
     const profile = readProfile();
-    const jobs = Object.values(readDb().jobs);
+    const db = readDb();
+    const jobs = Object.values(db.jobs);
     const insights = computeInsights(jobs, profile, { days: Number.isFinite(days) ? days : 90 });
-    return { insights, funnel: computeFunnel(jobs), minMonthlyPln: profile.minMonthlyPln ?? null };
+    return { insights, funnel: computeFunnel(jobs), minMonthlyPln: profile.minMonthlyPln ?? null, learningPlan: db.learningPlan ?? null };
   });
 }

@@ -10,13 +10,14 @@ import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { computeFunnel, computeInsights } from "../lib/insights";
-import { compareJobs, companyResearch, seniorityFrom, staleness, todos } from "../lib/jobs";
+import { followUpState } from "../lib/followup";
+import { computeFunnel, computeInsights, negotiation, POSITION_LABEL } from "../lib/insights";
+import { citiesFor, compareJobs, companyResearch, seniorityFrom, staleness, todos } from "../lib/jobs";
 import { b2bEquivalent, b2bNet, formatOnHand, onHandRange, paySettings, TAX_FORM_LABEL, uopNet, ZUS_LABEL, type B2bSettings } from "../lib/pay";
 import { formatSalary, parseSalaryText } from "../lib/salary";
 import { saveCv } from "../lib/server/cv";
 import { addJobs, scan } from "../lib/server/ingest";
-import { jobWithDescription, logEvents, patchJobs, rateJobs, saveCompany, saveDocument } from "../lib/server/jobOps";
+import { jobWithDescription, logEvents, patchJobs, rateJobs, saveCompany, saveDocument, saveLearningPlan } from "../lib/server/jobOps";
 import { readDb, readProfile, updateProfile } from "../lib/server/store";
 import {
   CLOSED_LABEL,
@@ -35,6 +36,7 @@ import {
   WORK_MODE_LABEL,
   type CompanyInfo,
   type Job,
+  type LearningPlan,
   type Profile,
 } from "../lib/types";
 
@@ -83,6 +85,40 @@ Tailored CV and cover letter (save_document), when the user applies or asks:
 - If something important is missing in the CV for this offer, say so to the user instead of filling it in.
 - The board shows the documents with PDF (print view) and DOCX downloads; the user may edit them there.
 
+Interview preparation (save_document kind "prep"), when a card reaches interview (get_overview lists "Przygotuj się do
+rozmowy") or the user asks:
+- From get_job (description, requirements, fit gaps, company research, history – who invited and for what kind of
+  interview) and get_profile (CV). Write in Polish unless the interview is in English (then English).
+- Sections ("## …"): Rozmowa (type, date, who, if known from the history); Pytania techniczne – 8–12 likely questions from
+  the offer's stack and level, each with a short hint of what a good answer covers; Twoje przykłady – 3–4 stories from
+  the CV in STAR form (sytuacja, zadanie, działanie, rezultat) mapped to the offer's requirements, only real experience;
+  Braki i jak o nich mówić – the fit gaps, honestly framed (what is adjacent, how fast the user learns it);
+  Pytania do firmy – 5–7 questions, using the research flags (e.g. turnover, end client, re-posted offer);
+  Wynagrodzenie – the figure from the negotiation section of get_job and how to phrase it; Na koniec – a short checklist.
+- Never invent the user's experience or numbers. Update the doc (get_document first) after each round if the user
+  tells you how it went.
+
+Follow-ups: get_overview lists applications without an answer (7+ days of silence, at most 2 reminders; after that it
+suggests closing). The board has a ready template; when the user asks you to write one, make it short (max 120 words),
+in the offer's language, gender-neutral in Polish, with one concrete point of fit from the rating – not pushy. Do not
+send it yourself. When you find in Gmail that the user sent a reminder, log it with log_events kind follow_up.
+
+Negotiation (interview / offer stage), when the user asks about money or gets an offer:
+- get_job shows a "Negocjacje" section: the company's proposal (update_job offered, when the user or an e-mail names an
+  amount), the published range, the market for the level from the collected offers and a suggested figure with reasons.
+  Use compare_pay for "na rękę" and B2B / UoP equivalents.
+- Give the user: the figure to name (and a walk-away minimum), 2–3 arguments from their CV and the market, phrasing in
+  Polish for "jakie są Pana/Pani oczekiwania?" and for a counter-offer, and what else to negotiate (B2B: paid days off,
+  notice period, equipment, rate review; UoP: bonus, 50% KUP for creative work, remote, training budget).
+- Say that the market numbers cover only offers JobDeck collected. Never invent other companies' offers.
+
+Learning plan (save_learning_plan), when the user asks what to learn or the plan is missing / older than ~2 months:
+- From get_market_insights: the recurring gaps and the most requested skills missing from the CV, weighted towards
+  offers rated 65+ (the ones within reach). Pick 3–5; skip what the CV may just be missing (ask the user instead).
+- For each: why (numbers: "w 9 z 31 ocenionych ofert, w tym 5 z oceną 65+"), one small project that would prove it in the
+  CV / on GitHub and fits the user's stack (concrete: what to build, which part shows the skill), effort, and 1–3
+  resources – official docs or well-known free courses; only links you have checked exist.
+
 Company research (save_company_research), with your web search / fetch tools:
 - What the company does, product company vs software house vs body leasing / outsourcing vs recruitment agency
   (then who the end client is, if the offer says), size and headcount in Poland, recent news (layoffs, funding,
@@ -121,7 +157,7 @@ It covers only the offers JobDeck collected (their keywords and filters), not th
 
 Answer in the user's language (Polish). The board UI is in Polish.`;
 
-const server = new McpServer({ name: "jobdeck", title: "JobDeck", version: "0.3.0" }, { instructions: INSTRUCTIONS });
+const server = new McpServer({ name: "jobdeck", title: "JobDeck", version: "0.4.0" }, { instructions: INSTRUCTIONS });
 
 type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
 
@@ -178,6 +214,14 @@ function funnelText(): string {
   ].join("\n");
 }
 
+function learningText(plan?: LearningPlan): string {
+  if (!plan?.items.length) return "\nPlan nauki: brak (save_learning_plan).";
+  return [
+    `\nPlan nauki (z ${plan.createdAt.slice(0, 10)}${plan.basedOn ? `, ${plan.basedOn}` : ""}):`,
+    ...plan.items.map((i) => `- ${i.done ? "✓ " : ""}${i.skill}${i.effort ? ` (${i.effort})` : ""}: ${i.project}`),
+  ].join("\n");
+}
+
 function companyText(c: CompanyInfo): string {
   return [
     `## Firma: ${c.name} (research ${c.researchedAt.slice(0, 10)})`,
@@ -192,6 +236,39 @@ function companyText(c: CompanyInfo): string {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+const zl = (v: number) => `${Math.round(v).toLocaleString("pl-PL")} zł`;
+
+/** Interview / offer stage: the figures for the salary talk. */
+function negotiationText(j: Job): string {
+  if (j.status !== "interview" && j.status !== "offer") return "";
+  const profile = readProfile();
+  const bands = computeInsights(Object.values(readDb().jobs), profile, { days: 180 }).salary;
+  const rows = negotiation(j, bands, { minMonthly: profile.minMonthlyPln });
+  if (!rows.length) return "\n## Negocjacje\nBrak widełek i za mało ofert z widełkami – zapytaj użytkownika o propozycję firmy (update_job offered) i użyj compare_pay.";
+  return [
+    "\n## Negocjacje (rynek z ofert JobDeck, 180 dni)",
+    ...rows.map((n) =>
+      [
+        `${n.contract === "b2b" ? "B2B netto" : "UoP brutto"}:`,
+        n.offered != null ? `  propozycja firmy ${zl(n.offered)}` : "",
+        n.range ? `  widełki ${n.range.min != null ? zl(n.range.min) : "?"}–${n.range.max != null ? zl(n.range.max) : "?"}` : "",
+        n.band ? `  rynek (${n.band.seniority}): mediana ${zl(n.band.median)}, 25–75%: ${zl(n.band.p25)}–${zl(n.band.p75)}, n=${n.band.n}` : "",
+        n.position ? `  pozycja: ${POSITION_LABEL[n.position]}` : "",
+        `  sugerowana kwota: ${zl(n.ask)}`,
+        ...n.reasons.map((r) => `  - ${r}`),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    ),
+  ].join("\n");
+}
+
+function followUpText(j: Job): string {
+  const f = followUpState(j);
+  if (!f) return "";
+  return `Follow-up: ${f.quietDays} d bez odpowiedzi, wysłano przypomnień: ${f.count}${f.due ? " – czas się przypomnieć" : f.giveUp ? " – rozważ zamknięcie" : ""}`;
 }
 
 function jobDetails(j: Job, company?: CompanyInfo): string {
@@ -215,9 +292,11 @@ function jobDetails(j: Job, company?: CompanyInfo): string {
     j.notes ? `Notatki: ${j.notes}` : "",
     j.nextStep ? `Następny krok: ${j.nextStep.text}${j.nextStep.date ? ` (${j.nextStep.date})` : ""}` : "",
     j.appliedAt ? `Wysłano: ${j.appliedAt}` : "",
+    followUpText(j),
     j.events?.length ? `Historia:\n${j.events.map((e) => `  ${e.at.slice(0, 10)} ${EVENT_LABEL[e.kind]}: ${e.text}${e.subject ? ` [${e.subject}]` : ""}`).join("\n")}` : "",
     `Dokumenty: ${DOC_KINDS.filter((k) => j.documents?.[k]).map((k) => `${DOC_LABEL[k]} (${j.documents![k]!.updatedAt.slice(0, 10)})`).join(", ") || "brak"}`,
     company ? `\n${companyText(company)}` : "Firma: brak researchu (save_company_research).",
+    negotiationText(j),
     "",
     "## Opis",
     j.description ?? j.summary ?? "(brak)",
@@ -228,7 +307,7 @@ function jobDetails(j: Job, company?: CompanyInfo): string {
 function profileText(p: Profile, includeCv: boolean): string {
   return [
     `Frazy wyszukiwania: ${p.keywords.join(", ") || "(brak – ustaw keywords)"}`,
-    `Lokalizacje: ${p.locations.join(", ") || "cała Polska"} · tryb: ${p.workModes.map((m) => WORK_MODE_LABEL[m]).join(", ")}`,
+    `Tryb i miasta: ${p.workModes.map((m) => (m === "remote" ? `${WORK_MODE_LABEL[m]} (cała Polska)` : `${WORK_MODE_LABEL[m]} (${citiesFor(p, m).join(", ") || "cała Polska"})`)).join(" · ") || "-"}`,
     `Poziom: ${p.seniority.join(", ")} · umowy: ${p.contracts.map((c) => CONTRACT_LABEL[c]).join(", ")}`,
     `Oczekiwania: ${p.minMonthlyPln ? `min ${p.minMonthlyPln} PLN/mies.` : "nie podano"}`,
     `Wykluczone słowa: ${p.excludeKeywords.join(", ") || "-"} · firmy: ${p.excludeCompanies.join(", ") || "-"}`,
@@ -302,7 +381,11 @@ server.registerTool(
       "Changes search preferences. Lists replace the old ones. skills = the user's skills as they appear in the CV (used for the quick stack match); about = what they look for and deal-breakers, in their words.",
     inputSchema: {
       keywords: z.array(z.string()).optional().describe('Search phrases sent to the portals, e.g. ["java", "kotlin"]. Short phrases work best.'),
-      locations: z.array(z.string()).optional().describe("Cities; empty = whole Poland. Remote offers are always kept."),
+      locations: z.array(z.string()).optional().describe("Cities for every on-site mode without its own list; empty = whole Poland. Remote offers are always kept."),
+      mode_locations: z
+        .object({ hybrid: z.array(z.string()).optional(), office: z.array(z.string()).optional() })
+        .optional()
+        .describe('Cities per mode, e.g. {"hybrid": ["Wrocław"]} = hybrid only in Wrocław; [] = whole Poland. Remote is never limited.'),
       work_modes: z.array(z.enum(["remote", "hybrid", "office"])).optional(),
       seniority: z.array(z.enum(SENIORITIES as [string, ...string[]])).optional(),
       contracts: z.array(z.enum(["b2b", "uop", "uz", "other"])).optional(),
@@ -329,6 +412,7 @@ server.registerTool(
   tool(async (a: {
     keywords?: string[];
     locations?: string[];
+    mode_locations?: { hybrid?: string[]; office?: string[] };
     work_modes?: Profile["workModes"];
     seniority?: string[];
     contracts?: Profile["contracts"];
@@ -343,6 +427,7 @@ server.registerTool(
     const p = await updateProfile((p) => {
       if (a.keywords) p.keywords = a.keywords;
       if (a.locations) p.locations = a.locations;
+      if (a.mode_locations) p.modeLocations = { ...p.modeLocations, ...a.mode_locations };
       if (a.work_modes) p.workModes = a.work_modes;
       if (a.seniority) p.seniority = a.seniority as Profile["seniority"];
       if (a.contracts) p.contracts = a.contracts;
@@ -609,7 +694,7 @@ server.registerTool(
         .array(
           z.object({
             job_id: z.string(),
-            kind: z.enum(["sent", "reply", "interview_invite", "task", "rejection", "offer", "note"]),
+            kind: z.enum(["sent", "follow_up", "reply", "interview_invite", "task", "rejection", "offer", "note"]).describe("follow_up = the user sent a reminder."),
             text: z.string().describe("One Polish sentence with the substance."),
             at: z.string().optional().describe("When it happened (the e-mail's date), ISO."),
             date: z.string().optional().describe("Interview date / task deadline, YYYY-MM-DD."),
@@ -632,9 +717,9 @@ server.registerTool(
 server.registerTool(
   "save_document",
   {
-    title: "Save tailored CV / cover letter",
+    title: "Save tailored CV / cover letter / interview prep",
     description:
-      "Saves a CV or cover letter tailored to one offer, as Markdown (follow the rules in the server instructions). Replaces the previous version; the board offers PDF and DOCX downloads.",
+      "Saves a CV, cover letter or interview preparation (kind prep) for one offer, as Markdown (follow the rules in the server instructions). Replaces the previous version; the board offers PDF and DOCX downloads.",
     inputSchema: {
       job_id: z.string(),
       kind: z.enum(DOC_KINDS),
@@ -721,10 +806,42 @@ server.registerTool(
       "\nŹródła (oferty / ocenione / śr. ocena / 65+ / wybrane / wysłane / rozmowy):",
       ...ins.sources.map((s) => `- ${SOURCE_LABEL[s.source]}: ${s.offers} / ${s.rated} / ${s.avgFit ?? "–"} / ${s.good} / ${s.picked} / ${s.applied} / ${s.interviews}`),
       funnelText(),
+      learningText(readDb().learningPlan),
       "\nTylko oferty zebrane przez JobDeck (frazy i filtry użytkownika) – nie cały rynek. Wykresy: http://127.0.0.1:3100/insights",
     ]
       .filter(Boolean)
       .join("\n");
+  }),
+);
+
+server.registerTool(
+  "save_learning_plan",
+  {
+    title: "Save learning plan",
+    description:
+      "Saves the learning plan shown on the Market page: 3–5 skills from the recurring gaps, each with why, a small project that proves it in the CV, effort and resources (follow the learning plan rules in the server instructions). Replaces the previous plan; items the user ticked off stay ticked off.",
+    inputSchema: {
+      items: z
+        .array(
+          z.object({
+            skill: z.string(),
+            why: z.string().describe("Polish, with numbers from get_market_insights."),
+            project: z.string().describe("Polish: what to build and which part shows the skill."),
+            effort: z.string().optional().describe('e.g. "weekend", "2–3 tygodnie".'),
+            resources: z.array(z.object({ title: z.string(), url: z.string().url() })).optional(),
+          }),
+        )
+        .min(1)
+        .max(8),
+      based_on: z.string().optional().describe('e.g. "38 ocenionych ofert z 90 dni".'),
+    },
+  },
+  tool(async ({ items, based_on }: { items: { skill: string; why: string; project: string; effort?: string; resources?: { title: string; url: string }[] }[]; based_on?: string }) => {
+    const plan = await saveLearningPlan(
+      items.map((i) => ({ ...i, resources: i.resources ?? [] })),
+      based_on,
+    );
+    return `Zapisano plan nauki (${plan.items.length}).${learningText(plan)}\nNa tablicy: http://127.0.0.1:3100/insights`;
   }),
 );
 
@@ -746,6 +863,11 @@ server.registerTool(
         .optional()
         .describe("null clears it."),
       applied_at: z.string().optional().describe("YYYY-MM-DD, when the application was sent."),
+      offered: z
+        .object({ monthly: z.number().positive().describe("Monthly PLN: B2B net (hourly × 168) or UoP gross."), contract: z.enum(["b2b", "uop"]) })
+        .nullable()
+        .optional()
+        .describe("What the company proposed; null clears it. Used by the negotiation section."),
     },
   },
   tool(async (a: {
@@ -756,6 +878,7 @@ server.registerTool(
     starred?: boolean;
     next_step?: { text: string; date?: string } | null;
     applied_at?: string;
+    offered?: Job["offered"] | null;
   }) => {
     const jobs = await patchJobs(a.job_ids, {
       status: a.status,
@@ -764,6 +887,7 @@ server.registerTool(
       starred: a.starred,
       nextStep: a.next_step,
       appliedAt: a.applied_at,
+      offered: a.offered,
     });
     return `Zaktualizowano:\n${jobs.map((j) => `- ${oneLine(j)} → ${STATUS_LABEL[j.status]}`).join("\n")}`;
   }),

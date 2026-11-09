@@ -21,4 +21,7 @@ sharing one data folder (`JOBDECK_HOME`, see `lib/server/store.ts`). UI and tool
 - Stale offers: `staleness()` in `lib/jobs.ts` from `firstPublishedAt` / `refreshCount` (kept by `ingest`).
   Funnel stats: `computeFunnel()` in `lib/insights.ts`.
 - Company research (`save_company_research`) is stored per `companyKey()` in `db.companies`.
+- Follow-ups: `lib/followup.ts` (when due, max 2 reminders, gender-neutral PL/EN template; `follow_up` event).
+  Interview prep is doc kind `prep`. Negotiation figures: `negotiation()` in `lib/insights.ts` (+ `job.offered`).
+  Learning plan from Claude (`save_learning_plan`) in `db.learningPlan`, shown on `/insights`.
 - `bun run check` before committing. Personal data (CV, offers) never goes into the repo.

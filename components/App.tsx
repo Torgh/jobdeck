@@ -132,6 +132,9 @@ export function App() {
           {data.todos.some((t) => t.kind === "research") && (
             <div className="muted small">Firmy sprawdza Claude: napisz „co nowego w JobDeck?” albo „sprawdź firmy w JobDeck”.</div>
           )}
+          {data.todos.some((t) => t.kind === "interview_prep") && (
+            <div className="muted small">Przygotowanie do rozmowy (pytania, Twoje przykłady, pytania do firmy) zrobi Claude: „przygotuj mnie do rozmowy w JobDeck”.</div>
+          )}
         </div>
       )}
       {(error || scanMsg) && (
@@ -165,7 +168,7 @@ export function App() {
   );
 }
 
-const TODO_ICON = { follow_up: "✉️", next_step: "📅", expiring: "⏳", outdated_fit: "♻️", research: "🏢" } as const;
+const TODO_ICON = { follow_up: "✉️", next_step: "📅", expiring: "⏳", outdated_fit: "♻️", research: "🏢", interview_prep: "🎯" } as const;
 
 function TodayBar({ data, open, onToggle }: { data: BoardData; open: boolean; onToggle: () => void }) {
   const jobs = data.jobs;

@@ -21,6 +21,8 @@ import {
 } from "@/lib/types";
 import { api, type JobUpdate } from "./api";
 import { Documents, Timeline } from "./Application";
+import { FollowUp } from "./FollowUp";
+import { NegotiationBox } from "./Negotiation";
 import { Kbd, Logo, ScoreRing } from "./ui";
 
 interface Props {
@@ -171,6 +173,11 @@ export function JobDetail({ job, mode, skills, cvHash, companies, pay, onUpdate,
           </p>
         )}
       </section>
+
+      {mode === "pipeline" && job.status === "applied" && (
+        <FollowUp key={`${job.id}-fu`} job={job} cvText={skills?.cv?.text} matched={job.skills.filter((s) => hits.has(s))} onChanged={onReload} />
+      )}
+      {mode === "pipeline" && (job.status === "interview" || job.status === "offer") && <NegotiationBox key={`${job.id}-nego`} job={job} pay={pay} onUpdate={onUpdate} />}
 
       {(mode === "pipeline" || job.documents) && <Documents key={`${job.id}-docs`} job={job} onChanged={onReload} />}
 

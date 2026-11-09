@@ -46,6 +46,16 @@ describe("filterReason", () => {
     expect(filterReason({ ...base, location: "Gdańsk", workMode: "remote" }, profile)).toBeUndefined();
   });
 
+  it("limits hybrid and office to their own cities, never remote", () => {
+    const p: Profile = { ...DEFAULT_PROFILE, workModes: ["remote", "hybrid"], modeLocations: { hybrid: ["Wrocław"], office: [] } };
+    expect(filterReason({ ...base, location: "Wrocław", workMode: "hybrid" }, p)).toBeUndefined();
+    expect(filterReason({ ...base, location: "Warszawa", workMode: "hybrid" }, p)).toMatch(/lokalizacja Warszawa \(hybrid\)/);
+    expect(filterReason({ ...base, location: "Warszawa", workMode: "remote" }, p)).toBeUndefined();
+    // Unknown mode: only the enabled on-site modes count (office is off).
+    expect(filterReason({ ...base, location: "Warszawa" }, p)).toMatch(/lokalizacja/);
+    expect(filterReason({ ...base, location: "Wrocław, Fabryczna" }, p)).toBeUndefined();
+  });
+
   it("skips excluded words, other cities, other levels, low pay", () => {
     expect(filterReason({ ...base, title: "PHP Developer" }, profile)).toMatch(/php/);
     expect(filterReason({ ...base, location: "Gdańsk", workMode: "hybrid" }, profile)).toMatch(/lokalizacja/);
@@ -87,6 +97,7 @@ describe("todos", () => {
     );
     expect(list.map((t) => [t.jobId, t.kind])).toEqual([
       ["2", "next_step"],
+      ["2", "interview_prep"],
       ["3", "expiring"],
       ["1", "follow_up"],
     ]);
