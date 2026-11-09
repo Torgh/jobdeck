@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ago } from "@/lib/format";
-import { compareJobs, type SkillSource } from "@/lib/jobs";
+import { compareJobs, staleness, type SkillSource } from "@/lib/jobs";
 import { bestOnHand, formatOnHand, onHandRange, type B2bSettings } from "@/lib/pay";
 import { bestMonthly, formatSalary } from "@/lib/salary";
 import { SOURCE_LABEL, SOURCES, WORK_MODE_LABEL, type CompanyInfo, type Job, type SourceId } from "@/lib/types";
@@ -172,7 +172,7 @@ export function Inbox({ jobs, skills, cvHash, companies, pay, onUpdate, onReload
                     {j.salaries[0] ? formatSalary({ ...j.salaries[0], monthlyPln: undefined }) : "—"}
                     <OnHandMini salary={j.salaries[0]} pay={pay} />
                   </span>
-                  <span className="muted">{ago(j.publishedAt ?? j.foundAt)}</span>
+                  <StaleOrAge job={j} />
                 </div>
               </div>
             </button>
@@ -209,4 +209,16 @@ export function Inbox({ jobs, skills, cvHash, companies, pay, onUpdate, onReload
 function OnHandMini({ salary, pay }: { salary?: Job["salaries"][number]; pay: B2bSettings }) {
   const r = salary && onHandRange(salary, pay);
   return r ? <span className="muted onhand-mini"> {formatOnHand(r).replace(" na rękę", "")}</span> : null;
+}
+
+function StaleOrAge({ job }: { job: Job }) {
+  const st = staleness(job);
+  if (st) {
+    return (
+      <span className={`stale ${st.level}`} title={st.text}>
+        ⏳ {st.days} d
+      </span>
+    );
+  }
+  return <span className="muted">{ago(job.publishedAt ?? job.foundAt)}</span>;
 }

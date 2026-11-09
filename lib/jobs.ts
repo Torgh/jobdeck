@@ -161,3 +161,27 @@ export function compareJobs(a: Job, b: Job): number {
   if (ma !== mb) return mb - ma;
   return (b.publishedAt ?? b.foundAt).localeCompare(a.publishedAt ?? a.foundAt);
 }
+
+export interface Staleness {
+  /** Days since the earliest known publication. */
+  days: number;
+  level: "old" | "ghost";
+  text: string;
+}
+
+/**
+ * Offers listed for months, or re-published again and again, are often not really being filled
+ * ("ghost jobs") – worth a question before investing in an application.
+ */
+export function staleness(job: Pick<Job, "firstPublishedAt" | "publishedAt" | "foundAt" | "refreshCount">, now = Date.now()): Staleness | undefined {
+  const first = [job.firstPublishedAt, job.publishedAt, job.foundAt].filter((d): d is string => !!d && !Number.isNaN(Date.parse(d))).sort()[0];
+  if (!first) return undefined;
+  const days = Math.floor((now - Date.parse(first)) / 86_400_000);
+  const refreshes = job.refreshCount ?? 0;
+  const again = refreshes ? `, odświeżana ${refreshes}×` : "";
+  if (days >= 90 || (days >= 45 && refreshes >= 2)) {
+    return { days, level: "ghost", text: `Możliwa oferta-widmo: wystawiana od ${days} dni${again}` };
+  }
+  if (days >= 45) return { days, level: "old", text: `Wystawiana od ${days} dni${again}` };
+  return undefined;
+}

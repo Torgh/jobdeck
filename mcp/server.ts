@@ -10,8 +10,8 @@ import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { computeInsights } from "../lib/insights";
-import { compareJobs, companyResearch, seniorityFrom, todos } from "../lib/jobs";
+import { computeFunnel, computeInsights } from "../lib/insights";
+import { compareJobs, companyResearch, seniorityFrom, staleness, todos } from "../lib/jobs";
 import { b2bEquivalent, b2bNet, formatOnHand, onHandRange, paySettings, TAX_FORM_LABEL, uopNet, ZUS_LABEL, type B2bSettings } from "../lib/pay";
 import { formatSalary, parseSalaryText } from "../lib/salary";
 import { saveCv } from "../lib/server/cv";
@@ -44,7 +44,8 @@ new → interesting → applying → applied → interview → offer, plus close
 
 Routine ("co nowego?", run every second day or so):
 1. get_overview – what is new, unrated, and what needs a follow-up.
-2. scan_portals – Just Join IT and No Fluff Jobs APIs (plus LinkedIn's public search if the user turned it on), since the last scan.
+2. scan_portals – Just Join IT, No Fluff Jobs and Bulldogjob (plus, if the user turned them on, LinkedIn's public search
+   and the remote boards from abroad Remotive and Himalayas – only offers open to Poland / Europe), since the last scan.
 3. LinkedIn & Pracuj.pl / theprotocol.it e-mail alerts – the main way their offers arrive (those portals block automated
    searches; never try to get around that). With Gmail tools, search the alerts since the last scan
    (from:jobalerts-noreply@linkedin.com OR from:jobs-listings@linkedin.com, from:pracuj.pl, from:theprotocol.it),
@@ -102,6 +103,8 @@ Rating fit (rate_jobs):
 - strengths / gaps: short Polish phrases naming the actual skill or requirement. A gap is something the offer requires
   that the CV does not show; say "nie widać w CV" when it may just be missing from the CV.
 - 80+ strong, 65–79 good, 45–64 partial, <45 weak. Do not inflate: a realistic score is more useful.
+- An offer marked "⚠ … oferta-widmo" (listed for months or re-published again and again) may not really be filled:
+  say so in the summary and suggest asking the recruiter whether the process is open before investing time.
 - If the CV is missing, ask the user to upload it (Ustawienia on the board, or import_cv with a file path).
 - Many new offers (more than ~25)? Triage first: from list_jobs (title, company, skills, stack match, salary) give the
   obvious mismatches a quick rating without opening them (summary starts with "Wstępnie:"), then open and rate properly
@@ -144,6 +147,7 @@ function oneLine(j: Job): string {
     j.fit ? `fit ${j.fit.score}` : j.stackMatch != null ? `stack ${j.stackMatch}%` : "",
     j.links.map((l) => SOURCE_LABEL[l.source]).join("/"),
     j.publishedAt ? `${days(j.publishedAt)} d temu` : "",
+    staleness(j)?.level === "ghost" ? `⚠ ${staleness(j)!.text}` : "",
   ];
   return parts.filter(Boolean).join(" · ");
 }
@@ -162,6 +166,16 @@ function onHand(j: Job): string {
 
 function payText(s: B2bSettings): string {
   return `${TAX_FORM_LABEL[s.form]}${s.form === "ryczalt" ? ` ${s.ryczaltRate}%` : ""}, ${ZUS_LABEL[s.zus]}${s.sickness ? " + chorobowe" : ""}, koszty ${s.costsMonthly} zł/mies., dni bez wynagrodzenia: ${s.unpaidDays}`;
+}
+
+function funnelText(): string {
+  const f = computeFunnel(Object.values(readDb().jobs));
+  const pc = (v?: number) => (v == null ? "–" : `${Math.round(v * 100)}%`);
+  return [
+    `\nLejek użytkownika: ${f.stages.map((s) => `${s.label} ${s.count}`).join(" → ")}`,
+    `Odpowiedzi: ${pc(f.responseRate)} · rozmowy: ${pc(f.interviewRate)}${f.medianDaysToAnswer != null ? ` · mediana czasu do odpowiedzi ${f.medianDaysToAnswer} d` : ""} · bez odpowiedzi > 14 dni: ${f.noAnswer}`,
+    `Wysłane tygodniowo (8 tyg.): ${f.weekly.map((w) => w.applied).join(", ")}`,
+  ].join("\n");
 }
 
 function companyText(c: CompanyInfo): string {
@@ -193,7 +207,8 @@ function jobDetails(j: Job, company?: CompanyInfo): string {
     j.skills.length ? `Wymagane: ${j.skills.join(", ")}` : "",
     j.niceSkills?.length ? `Mile widziane: ${j.niceSkills.join(", ")}` : "",
     j.stackMatch != null ? `Zgodność stacku z CV (słowa kluczowe): ${j.stackMatch}%` : "",
-    `Opublikowana: ${j.publishedAt?.slice(0, 10) ?? "?"}${j.expiresAt ? ` · wygasa ${j.expiresAt.slice(0, 10)}` : ""}`,
+    `Opublikowana: ${j.publishedAt?.slice(0, 10) ?? "?"}${j.firstPublishedAt && j.firstPublishedAt.slice(0, 10) !== j.publishedAt?.slice(0, 10) ? ` (pierwszy raz ${j.firstPublishedAt.slice(0, 10)})` : ""}${j.expiresAt ? ` · wygasa ${j.expiresAt.slice(0, 10)}` : ""}`,
+    staleness(j) ? `⚠ ${staleness(j)!.text}` : "",
     j.fit
       ? `Ocena: ${j.fit.score}/100 – ${VERDICT_LABEL[j.fit.verdict]}. ${j.fit.summary}\n  + ${j.fit.strengths.join("; ")}\n  − ${j.fit.gaps.join("; ")}`
       : "Ocena: brak",
@@ -372,7 +387,7 @@ server.registerTool(
   "scan_portals",
   {
     title: "Scan job portals",
-    description: "Searches Just Join IT and No Fluff Jobs (and LinkedIn's public search if enabled) for the profile's keywords and adds offers published since the last scan (default) to the 'new' column, merging duplicates across portals. Takes up to a minute or two.",
+    description: "Searches Just Join IT, No Fluff Jobs and Bulldogjob (and LinkedIn's public search, Remotive and Himalayas if enabled) for the profile's keywords and adds offers published since the last scan (default) to the 'new' column, merging duplicates across portals. Takes up to a minute or two.",
     inputSchema: {
       sources: z.array(z.enum(SOURCES)).optional().describe("Only these portals (default: all enabled)."),
       keywords: z.array(z.string()).optional().describe("One-off phrases instead of the profile's."),
@@ -705,6 +720,7 @@ server.registerTool(
       ins.gaps.length ? `\nNajczęstsze braki w ocenach: ${ins.gaps.map((g) => `${g.text} (${g.count}×)`).join(", ")}` : "",
       "\nŹródła (oferty / ocenione / śr. ocena / 65+ / wybrane / wysłane / rozmowy):",
       ...ins.sources.map((s) => `- ${SOURCE_LABEL[s.source]}: ${s.offers} / ${s.rated} / ${s.avgFit ?? "–"} / ${s.good} / ${s.picked} / ${s.applied} / ${s.interviews}`),
+      funnelText(),
       "\nTylko oferty zebrane przez JobDeck (frazy i filtry użytkownika) – nie cały rynek. Wykresy: http://127.0.0.1:3100/insights",
     ]
       .filter(Boolean)

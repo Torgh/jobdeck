@@ -269,6 +269,18 @@ export function Settings() {
               No Fluff Jobs – skan przez API
             </label>
             <label>
+              <input type="checkbox" checked={form.sources.bulldogjob} onChange={(e) => set("sources", { ...form.sources, bulldogjob: e.target.checked })} />
+              Bulldogjob – skan według technologii (pierwsze słowo frazy, np. „Kotlin”)
+            </label>
+            <label>
+              <input type="checkbox" checked={form.sources.remotive} onChange={(e) => set("sources", { ...form.sources, remotive: e.target.checked })} />
+              Remotive – praca zdalna z zagranicy (otwarta dla Polski / Europy)
+            </label>
+            <label>
+              <input type="checkbox" checked={form.sources.himalayas} onChange={(e) => set("sources", { ...form.sources, himalayas: e.target.checked })} />
+              Himalayas – praca zdalna z zagranicy (otwarta dla Polski / Europy)
+            </label>
+            <label>
               <input type="checkbox" checked={form.sources.linkedin} onChange={(e) => set("sources", { ...form.sources, linkedin: e.target.checked })} />
               LinkedIn – dodatkowo publiczna wyszukiwarka (bez logowania; eksperymentalnie, LinkedIn często ją blokuje)
             </label>

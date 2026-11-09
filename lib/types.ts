@@ -1,14 +1,17 @@
 /** Shared data model of JobDeck: used by the board, the API routes, the scanner and the MCP server. */
 
-export const SOURCES = ["linkedin", "justjoin", "nofluff", "pracuj", "protocol", "other"] as const;
+export const SOURCES = ["linkedin", "justjoin", "nofluff", "bulldogjob", "pracuj", "protocol", "remotive", "himalayas", "other"] as const;
 export type SourceId = (typeof SOURCES)[number];
 
 export const SOURCE_LABEL: Record<SourceId, string> = {
   linkedin: "LinkedIn",
   justjoin: "Just Join IT",
   nofluff: "No Fluff Jobs",
+  bulldogjob: "Bulldogjob",
   pracuj: "Pracuj.pl",
   protocol: "theprotocol.it",
+  remotive: "Remotive",
+  himalayas: "Himalayas",
   other: "Inne",
 };
 
@@ -16,7 +19,10 @@ export const SOURCE_LABEL: Record<SourceId, string> = {
  * Sources the scanner searches by itself. LinkedIn's public search is opt-in (it throttles quickly);
  * LinkedIn and Pracuj.pl offers mainly arrive from their e-mail alerts, which Claude reads via Gmail.
  */
-export const SCANNABLE: SourceId[] = ["justjoin", "nofluff", "linkedin"];
+export const SCANNABLE: SourceId[] = ["justjoin", "nofluff", "bulldogjob", "linkedin", "remotive", "himalayas"];
+
+/** Remote job boards from abroad: a different market (often USD/EUR), so off unless the user wants them. */
+export const ABROAD: SourceId[] = ["remotive", "himalayas"];
 
 export const STATUSES = ["new", "interesting", "applying", "applied", "interview", "offer", "closed"] as const;
 export type Status = (typeof STATUSES)[number];
@@ -168,6 +174,10 @@ export interface Job {
   description?: string;
   descriptionFetchedAt?: string;
   publishedAt?: string;
+  /** The earliest publication date any portal reported (re-published offers keep their first date here). */
+  firstPublishedAt?: string;
+  /** How many times the offer was re-published / bumped since JobDeck first saw it. */
+  refreshCount?: number;
   expiresAt?: string;
   foundAt: string;
   updatedAt: string;
@@ -291,7 +301,7 @@ export const DEFAULT_PROFILE: Profile = {
   contracts: ["b2b", "uop"],
   excludeKeywords: [],
   excludeCompanies: [],
-  sources: { linkedin: false, justjoin: true, nofluff: true, pracuj: true, protocol: true, other: true },
+  sources: { linkedin: false, justjoin: true, nofluff: true, bulldogjob: true, pracuj: true, protocol: true, remotive: false, himalayas: false, other: true },
   skills: [],
 };
 
@@ -312,5 +322,6 @@ export interface JobInput {
   summary?: string;
   description?: string;
   publishedAt?: string;
+  firstPublishedAt?: string;
   expiresAt?: string;
 }

@@ -160,6 +160,7 @@ describe("JobDeck MCP server", () => {
     expect(res).toMatch(/Najczęściej wymagane/);
     expect(res).toMatch(/✓ Java/);
     expect(res).toMatch(/nie cały rynek/);
+    expect(res).toMatch(/Lejek użytkownika: Wybrane \d+ → Wysłane \d+/);
   });
 
   it("reports errors as tool errors", async () => {

@@ -3,7 +3,7 @@
 import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { useEffect, useState } from "react";
 import { ago } from "@/lib/format";
-import { compareJobs, companyResearch, type SkillSource } from "@/lib/jobs";
+import { compareJobs, companyResearch, staleness, type SkillSource } from "@/lib/jobs";
 import type { B2bSettings } from "@/lib/pay";
 import { formatSalary } from "@/lib/salary";
 import { CLOSED_LABEL, STATUS_LABEL, WORK_MODE_LABEL, type CompanyInfo, type Job, type Status } from "@/lib/types";
@@ -147,6 +147,7 @@ function Card({ job, selected, onOpen, researched }: { job: Job; selected: boole
           <span className="muted">{job.appliedAt ? `wysłano ${ago(job.appliedAt + "T12:00:00Z")}` : ago(job.statusChangedAt)}</span>
         )}
         {job.documents && Object.keys(job.documents).length > 0 && <span title="Ma dopasowane dokumenty">📄</span>}
+        {staleness(job)?.level === "ghost" && <span title={staleness(job)!.text}>⏳</span>}
         {!researched && job.status !== "closed" && (
           <span className="muted" title="Firma jeszcze nie sprawdzona">
             🏢?

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterReason, jobKey, seniorityFrom, stackMatch, todos, workModeFrom } from "./jobs";
+import { filterReason, jobKey, seniorityFrom, stackMatch, staleness, todos, workModeFrom } from "./jobs";
 import { DEFAULT_PROFILE, type Job, type Profile } from "./types";
 
 const profile: Profile = { ...DEFAULT_PROFILE, locations: ["Kraków"], excludeKeywords: ["php"], minMonthlyPln: 20000 };
@@ -96,5 +96,16 @@ describe("todos", () => {
     const jobs = [job({ id: "1", status: "interesting" }), job({ id: "2", status: "applied", statusChangedAt: "2026-11-09T00:00:00Z" }), job({ id: "3" })];
     expect(todos(jobs, undefined, now).filter((t) => t.kind === "research").map((t) => t.jobId)).toEqual(["1"]);
     expect(todos(jobs, undefined, now, researched("2026-08-01T00:00:00Z")).some((t) => t.kind === "research")).toBe(true);
+  });
+});
+
+describe("staleness", () => {
+  const now = Date.parse("2026-11-10T12:00:00Z");
+  const at = { foundAt: "2026-11-09T00:00:00Z" };
+  it("flags long-listed and repeatedly re-published offers", () => {
+    expect(staleness({ ...at, firstPublishedAt: "2026-11-01T00:00:00Z" }, now)).toBeUndefined();
+    expect(staleness({ ...at, firstPublishedAt: "2026-09-20T00:00:00Z" }, now)).toMatchObject({ level: "old", days: 51 });
+    expect(staleness({ ...at, firstPublishedAt: "2026-09-20T00:00:00Z", refreshCount: 2 }, now)?.text).toBe("Możliwa oferta-widmo: wystawiana od 51 dni, odświeżana 2×");
+    expect(staleness({ ...at, firstPublishedAt: "2026-07-01T00:00:00Z" }, now)?.level).toBe("ghost");
   });
 });

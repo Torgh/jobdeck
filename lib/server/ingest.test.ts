@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PROFILE, type Db } from "../types";
 import { ingest } from "./ingest";
-import { mapJustJoin, mapNoFluff, parseLinkedInCards } from "./sources";
+import { mapBulldog, mapHimalayas, mapJustJoin, mapNoFluff, mapRemotive, openToPoland, parseLinkedInCards } from "./sources";
 
 const rates = { PLN: 1 };
 const emptyDb = (): Db => ({ version: 0, jobs: {}, scans: [] });
@@ -117,5 +117,60 @@ describe("source mappers", () => {
         publishedAt: "2026-11-09T00:00:00Z",
       }),
     ]);
+  });
+});
+
+describe("publication history", () => {
+  it("keeps the first publication date and counts re-publications", () => {
+    const db: Db = { version: 0, jobs: {}, scans: [] };
+    const base = { title: "Kotlin Dev", company: "Acme", url: "https://a/k", source: "justjoin" as const };
+    ingest(db, [{ ...base, publishedAt: "2026-09-01T00:00:00Z", firstPublishedAt: "2026-08-15T00:00:00Z" }], DEFAULT_PROFILE, rates);
+    ingest(db, [{ ...base, publishedAt: "2026-10-01T00:00:00Z" }], DEFAULT_PROFILE, rates);
+    ingest(db, [{ ...base, publishedAt: "2026-10-01T06:00:00Z" }], DEFAULT_PROFILE, rates);
+    ingest(db, [{ ...base, publishedAt: "2026-11-01T00:00:00Z" }], DEFAULT_PROFILE, rates);
+    const job = Object.values(db.jobs)[0];
+    expect(job.firstPublishedAt).toBe("2026-08-15T00:00:00Z");
+    expect(job.refreshCount).toBe(2);
+  });
+});
+
+describe("new sources", () => {
+  it("maps Bulldogjob offers", () => {
+    const j = mapBulldog({
+      id: "260948-mobile-architect",
+      position: "Mobile Solution Architect",
+      company: { name: "TeamQuest", logo: { url: "https://cdn/logo.png" } },
+      city: "Gdańsk",
+      remote: false,
+      experienceLevel: "medium",
+      technologyTags: ["Kotlin", "Swift"],
+      showSalary: true,
+      denominatedSalaryLong: { money: "24 000 - 32 000", currency: "PLN" },
+      contractB2b: true,
+      contractEmployment: false,
+    });
+    expect(j).toMatchObject({ url: "https://bulldogjob.pl/companies/jobs/260948-mobile-architect", seniority: "mid", skills: ["Kotlin", "Swift"], logo: "https://cdn/logo.png" });
+    expect(j.salaries?.[0]).toMatchObject({ min: 24000, max: 32000, currency: "PLN", period: "month", contract: "b2b" });
+  });
+
+  it("keeps remote offers open to Poland", () => {
+    expect(openToPoland(undefined)).toBe(true);
+    expect(openToPoland("Worldwide")).toBe(true);
+    expect(openToPoland(["Czechia", "Poland"])).toBe(true);
+    expect(openToPoland("Europe, CET +/- 2h")).toBe(true);
+    expect(openToPoland("USA only")).toBe(false);
+    expect(openToPoland(["Spain"])).toBe(false);
+  });
+
+  it("maps Remotive and Himalayas offers", () => {
+    expect(mapRemotive({ id: 1, url: "https://remotive.com/x-1", title: "Senior Kotlin Engineer", company_name: "Acme", publication_date: "2026-11-07T01:10:55", candidate_required_location: "Europe" })).toMatchObject({
+      source: "remotive",
+      workMode: "remote",
+      seniority: "senior",
+      publishedAt: "2026-11-07T01:10:55Z",
+    });
+    const h = mapHimalayas({ title: "Team Lead Kotlin", companyName: "JetBrains", guid: "https://himalayas.app/j/1", minSalary: 90000, maxSalary: 120000, salaryPeriod: "annual", currency: "EUR", locationRestrictions: ["Poland"], pubDate: 1794236924 });
+    expect(h.salaries?.[0]).toMatchObject({ min: 90000, max: 120000, period: "year", currency: "EUR" });
+    expect(h.location).toBe("Poland");
   });
 });

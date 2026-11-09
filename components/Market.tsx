@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { Insights, SalaryBand } from "@/lib/insights";
+import type { Funnel, Insights, SalaryBand } from "@/lib/insights";
 import { SENIORITY_LABEL, SOURCE_LABEL, type Seniority } from "@/lib/types";
 import { api } from "./api";
 
@@ -14,12 +14,12 @@ const CONTRACT_NAME = { b2b: "B2B netto", uop: "UoP brutto" } as const;
 /** What the collected offers say: salaries by level, skills in demand, recurring gaps, sources. */
 export function Market() {
   const [days, setDays] = useState(90);
-  const [data, setData] = useState<{ insights: Insights; minMonthlyPln: number | null }>();
+  const [data, setData] = useState<{ insights: Insights; funnel: Funnel; minMonthlyPln: number | null }>();
   const [error, setError] = useState<string>();
 
   useEffect(() => {
     let alive = true;
-    api<{ insights: Insights; minMonthlyPln: number | null }>(`/api/insights?days=${days}`)
+    api<{ insights: Insights; funnel: Funnel; minMonthlyPln: number | null }>(`/api/insights?days=${days}`)
       .then((d) => alive && setData(d))
       .catch((e) => alive && setError((e as Error).message));
     return () => {
@@ -72,6 +72,8 @@ export function Market() {
               <Tile label="Mediana UoP" value={median("uop") ? k(median("uop")!.median) : "–"} sub={median("uop") ? `brutto / mies. · ${median("uop")!.n} ofert` : "za mało ofert"} />
               <Tile label="Średnie dopasowanie" value={ins.avgFit != null ? String(ins.avgFit) : "–"} sub={`${ins.rated} ocenionych przez Claude`} />
             </div>
+
+            <FunnelSection funnel={data.funnel} />
 
             <SalaryChart bands={ins.salary} minMonthly={data.minMonthlyPln} />
 
@@ -289,6 +291,76 @@ function GapsChart({ gaps }: { gaps: Insights["gaps"] }) {
       ) : (
         <p className="muted">Za mało ocen – poproś Claude o ocenę nowych ofert.</p>
       )}
+    </section>
+  );
+}
+
+/** The user's own funnel: ordinal bars with the conversion from the previous stage, and applications per week. */
+function FunnelSection({ funnel }: { funnel: Funnel }) {
+  const applied = funnel.stages.find((s) => s.key === "applied")!.count;
+  if (!funnel.stages[0].count) {
+    return (
+      <section className="panel">
+        <h2>Twój lejek</h2>
+        <p className="muted">Pojawi się, gdy zaczniesz oznaczać oferty jako Ciekawe i wysyłać aplikacje.</p>
+      </section>
+    );
+  }
+  const max = Math.max(1, ...funnel.stages.map((s) => s.count));
+  const weekMax = Math.max(1, ...funnel.weekly.map((w) => w.applied));
+  return (
+    <section className="panel">
+      <h2>Twój lejek</h2>
+      <p className="hint">
+        {applied
+          ? `Odpowiedź na ${pct(funnel.responseRate ?? 0)} aplikacji, rozmowa po ${pct(funnel.interviewRate ?? 0)}` +
+            (funnel.medianDaysToAnswer != null ? `, firmy odpisują zwykle po ${funnel.medianDaysToAnswer} dniach` : "") +
+            (funnel.noAnswer ? ` · ${funnel.noAnswer} bez odpowiedzi od ponad 14 dni` : "") +
+            "."
+          : "Jeszcze nie wysłano aplikacji."}
+      </p>
+      <div className="viz-two tight">
+        <div className="hbars funnel">
+          {funnel.stages.map((s, i) => {
+            const prev = i ? funnel.stages[i - 1].count : 0;
+            return (
+              <div key={s.key} className="hbar">
+                <span className="hbar-label">{s.label}</span>
+                <span className="hbar-track">
+                  <span className="hbar-fill" style={{ width: `${(s.count / max) * 100}%`, opacity: 1 - i * 0.12 }} />
+                </span>
+                <span className="hbar-val">{s.count}</span>
+                <span className="tip">
+                  <b>{s.label}</b>: {s.count}
+                  {i > 0 && prev > 0 && (
+                    <>
+                      <br />
+                      {pct(s.count / prev)} z etapu „{funnel.stages[i - 1].label}”
+                    </>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <div>
+          <div className="cols">
+            {funnel.weekly.map((w) => (
+              <div key={w.week} className="col">
+                <span className="col-val">{w.applied || ""}</span>
+                <span className="col-bar" style={{ height: `${(w.applied / weekMax) * 100}%` }} />
+                <span className="col-label">{w.week.slice(8, 10)}.{w.week.slice(5, 7)}</span>
+                <span className="tip">
+                  Tydzień od {w.week}: {w.applied} {w.applied === 1 ? "aplikacja" : "aplikacji"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="muted small" style={{ textAlign: "center", marginTop: 4 }}>
+            Wysłane aplikacje w tygodniu (ostatnie 8 tygodni)
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

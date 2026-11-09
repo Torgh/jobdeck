@@ -21,6 +21,8 @@ konkretną ofertę (Claude podaje takie linki).
 |---|---|
 | Just Join IT | skan przez publiczne API |
 | No Fluff Jobs | skan przez publiczne API |
+| Bulldogjob | skan listy ofert według technologii (pierwsze słowo frazy, np. „Kotlin”) |
+| Remotive, Himalayas | opcjonalnie: praca zdalna z zagranicy, tylko oferty otwarte dla Polski / Europy (domyślnie wyłączone) |
 | LinkedIn | **alerty e-mail** → Claude czyta je w Gmailu (`add_jobs`); opcjonalnie publiczna wyszukiwarka (domyślnie wyłączona) |
 | Pracuj.pl, theprotocol.it | **alerty e-mail** → Claude czyta je w Gmailu (`add_jobs`); te portale blokują automaty |
 | dowolny link | wklej go Claude'owi: „dodaj tę ofertę do JobDeck” |
@@ -109,6 +111,14 @@ Przepisy na 2026 r. są w `lib/pay.ts` (`PL_2026`) – szacunek bez ulg, PPK i w
 
 Claude ma narzędzie `get_market_insights`: „co mówi rynek w JobDeck?”. To tylko oferty zebrane przez JobDeck
 (Twoje frazy i filtry), nie cały rynek.
+
+## Oferty-widma i Twój lejek
+
+- JobDeck pamięta najwcześniejszą datę publikacji i liczy ponowne publikacje. Oferta wystawiana od 45+ dni jest
+  oznaczona „⏳”, a od 90 dni (albo 45 dni i co najmniej 2 odświeżenia) – jako **możliwa oferta-widmo**, z radą,
+  żeby przed aplikacją zapytać, czy rekrutacja trwa.
+- Na stronie **Rynek** sekcja **Twój lejek**: wybrane → wysłane → odpowiedź → rozmowa → oferta, odsetek odpowiedzi
+  i rozmów, typowy czas do odpowiedzi, aplikacje bez odpowiedzi od 14+ dni i wysłane aplikacje tydzień po tygodniu.
 
 ## Research firm
 

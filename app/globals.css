@@ -1674,3 +1674,72 @@ a.rating:hover {
     grid-template-columns: 64px 1fr;
   }
 }
+
+/* ───────── stale offers & funnel ───────── */
+.stale {
+  font-size: 12px;
+  font-weight: 600;
+}
+.stale.old {
+  color: var(--muted);
+}
+.stale.ghost {
+  color: var(--partial);
+}
+.stale-box {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.stale-box.ghost {
+  background: var(--partial-soft);
+  border-color: transparent;
+}
+.viz-two.tight {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  align-items: end;
+}
+.cols {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  height: 140px;
+  align-items: end;
+  border-bottom: 1px solid var(--viz-axis);
+  padding-top: 18px;
+}
+.col {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+.col-bar {
+  width: 70%;
+  min-height: 0;
+  background: var(--series-1);
+  border-radius: 4px 4px 0 0;
+}
+.col-val {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.col-label {
+  position: absolute;
+  bottom: -20px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.col:hover .tip {
+  display: block;
+}
+.cols + .muted {
+  margin-top: 24px !important;
+}

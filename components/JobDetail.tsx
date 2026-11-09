@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ago } from "@/lib/format";
-import { ACTIVE, companyResearch, matchedSkills, type SkillSource } from "@/lib/jobs";
+import { ACTIVE, companyResearch, matchedSkills, staleness, type SkillSource } from "@/lib/jobs";
 import { formatOnHand, onHandRange, type B2bSettings } from "@/lib/pay";
 import { formatSalary } from "@/lib/salary";
 import {
@@ -54,6 +54,7 @@ export function JobDetail({ job, mode, skills, cvHash, companies, pay, onUpdate,
   const desc = description?.id === job.id ? description : undefined;
   const fit = job.fit;
   const outdated = fit?.cvHash && cvHash && fit.cvHash !== cvHash;
+  const stale = staleness(job);
   const meta = [job.workMode && WORK_MODE_LABEL[job.workMode], job.location, job.seniority && SENIORITY_LABEL[job.seniority]].filter(Boolean);
 
   return (
@@ -129,6 +130,15 @@ export function JobDetail({ job, mode, skills, cvHash, companies, pay, onUpdate,
           </a>
         ))}
       </div>
+
+      {stale && (
+        <div className={`stale-box ${stale.level}`}>
+          ⏳ <b>{stale.text}.</b>{" "}
+          {stale.level === "ghost"
+            ? "Takie ogłoszenia często nie są aktywnie obsadzane – zanim zainwestujesz w aplikację, zapytaj rekrutera, czy rekrutacja trwa."
+            : "Warto zapytać, czy rekrutacja wciąż jest otwarta."}
+        </div>
+      )}
 
       <section className="box fit">
         <div className="box-head">

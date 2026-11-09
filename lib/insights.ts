@@ -161,3 +161,68 @@ export function computeInsights(jobs: Job[], profile: SkillSource, opts: { days?
     sources,
   };
 }
+
+/** The user's application funnel, over everything on the board. */
+export interface Funnel {
+  stages: { key: "picked" | "applied" | "responded" | "interview" | "offer"; label: string; count: number }[];
+  /** Share of sent applications that got any answer. */
+  responseRate?: number;
+  /** Share of sent applications that led to an interview. */
+  interviewRate?: number;
+  /** Median days from sending to the first answer. */
+  medianDaysToAnswer?: number;
+  /** Sent more than 14 days ago, still no answer. */
+  noAnswer: number;
+  /** Applications sent per week, the last 8 weeks (week = Monday, YYYY-MM-DD). */
+  weekly: { week: string; applied: number }[];
+}
+
+const ANSWER_KINDS = new Set(["reply", "interview_invite", "task", "rejection", "offer"]);
+
+function monday(ts: number): string {
+  const d = new Date(ts);
+  const day = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - day);
+  return d.toISOString().slice(0, 10);
+}
+
+export function computeFunnel(jobs: Job[], now = Date.now()): Funnel {
+  const reachedInterview = (j: Job) =>
+    j.status === "interview" || j.status === "offer" || !!j.events?.some((e) => e.kind === "interview_invite" || (e.kind === "status" && e.text.endsWith("→ Rozmowy")));
+  const gotOffer = (j: Job) => j.status === "offer" || j.closedReason === "accepted" || !!j.events?.some((e) => e.kind === "offer");
+  const applied = jobs.filter((j) => !!j.appliedAt || APPLIED.has(j.status));
+  const firstAnswer = (j: Job) => j.events?.find((e) => ANSWER_KINDS.has(e.kind))?.at;
+  const answered = applied.filter((j) => firstAnswer(j) || reachedInterview(j) || j.closedReason === "rejected");
+  const picked = jobs.filter((j) => j.status !== "new" && !(j.status === "closed" && j.closedReason === "not_for_me" && !j.appliedAt));
+  const interviews = applied.filter(reachedInterview);
+  const offers = applied.filter(gotOffer);
+
+  const waits = applied
+    .map((j) => {
+      const a = firstAnswer(j);
+      return a && j.appliedAt ? (Date.parse(a) - Date.parse(`${j.appliedAt}T00:00:00Z`)) / 86_400_000 : undefined;
+    })
+    .filter((d): d is number => d != null && d >= 0)
+    .sort((a, b) => a - b);
+
+  const weeks = Array.from({ length: 8 }, (_, i) => monday(now - (7 - i) * 7 * 86_400_000));
+  const weekly = weeks.map((week) => ({
+    week,
+    applied: applied.filter((j) => j.appliedAt && monday(Date.parse(`${j.appliedAt}T12:00:00Z`)) === week).length,
+  }));
+
+  return {
+    stages: [
+      { key: "picked", label: "Wybrane", count: picked.length },
+      { key: "applied", label: "Wysłane", count: applied.length },
+      { key: "responded", label: "Odpowiedź", count: answered.length },
+      { key: "interview", label: "Rozmowa", count: interviews.length },
+      { key: "offer", label: "Oferta", count: offers.length },
+    ],
+    responseRate: applied.length ? answered.length / applied.length : undefined,
+    interviewRate: applied.length ? interviews.length / applied.length : undefined,
+    medianDaysToAnswer: waits.length ? Math.round(quantile(waits, 0.5)) : undefined,
+    noAnswer: applied.filter((j) => j.status === "applied" && !firstAnswer(j) && j.appliedAt && now - Date.parse(`${j.appliedAt}T00:00:00Z`) > 14 * 86_400_000).length,
+    weekly,
+  };
+}
