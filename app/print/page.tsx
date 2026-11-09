@@ -20,14 +20,14 @@ export async function generateMetadata({ searchParams }: { searchParams: Search 
   return { title: job ? docTitle(job, kind) : "Dokument" };
 }
 
-/** A4 view of a tailored CV / cover letter: print it or save it as PDF from the browser. */
+/** A4 view of a tailored CV / cover letter / interview preparation: print it or save it as PDF from the browser. */
 export default async function PrintPage({ searchParams }: { searchParams: Search }) {
   const { id, doc } = await searchParams;
   const { job, md } = load(id, doc);
   return (
     <div className="print-page">
       <PrintBar back={job ? `/?job=${job.id}` : "/"} />
-      {md ? <Markdown source={md} className={`sheet doc-${doc === "letter" ? "letter" : "cv"}`} /> : <p className="sheet">Ta oferta nie ma jeszcze takiego dokumentu.</p>}
+      {md ? <Markdown source={md} className={`sheet doc-${doc === "cv" || !doc ? "cv" : "letter"}`} /> : <p className="sheet">Ta oferta nie ma jeszcze takiego dokumentu.</p>}
     </div>
   );
 }

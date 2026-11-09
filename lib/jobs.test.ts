@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterReason, jobKey, seniorityFrom, stackMatch, todos, workModeFrom } from "./jobs";
+import { filterReason, jobKey, seniorityFrom, stackMatch, staleness, todos, workModeFrom } from "./jobs";
 import { DEFAULT_PROFILE, type Job, type Profile } from "./types";
 
 const profile: Profile = { ...DEFAULT_PROFILE, locations: ["Kraków"], excludeKeywords: ["php"], minMonthlyPln: 20000 };
@@ -46,6 +46,16 @@ describe("filterReason", () => {
     expect(filterReason({ ...base, location: "Gdańsk", workMode: "remote" }, profile)).toBeUndefined();
   });
 
+  it("limits hybrid and office to their own cities, never remote", () => {
+    const p: Profile = { ...DEFAULT_PROFILE, workModes: ["remote", "hybrid"], modeLocations: { hybrid: ["Wrocław"], office: [] } };
+    expect(filterReason({ ...base, location: "Wrocław", workMode: "hybrid" }, p)).toBeUndefined();
+    expect(filterReason({ ...base, location: "Warszawa", workMode: "hybrid" }, p)).toMatch(/lokalizacja Warszawa \(hybrid\)/);
+    expect(filterReason({ ...base, location: "Warszawa", workMode: "remote" }, p)).toBeUndefined();
+    // Unknown mode: only the enabled on-site modes count (office is off).
+    expect(filterReason({ ...base, location: "Warszawa" }, p)).toMatch(/lokalizacja/);
+    expect(filterReason({ ...base, location: "Wrocław, Fabryczna" }, p)).toBeUndefined();
+  });
+
   it("skips excluded words, other cities, other levels, low pay", () => {
     expect(filterReason({ ...base, title: "PHP Developer" }, profile)).toMatch(/php/);
     expect(filterReason({ ...base, location: "Gdańsk", workMode: "hybrid" }, profile)).toMatch(/lokalizacja/);
@@ -87,6 +97,7 @@ describe("todos", () => {
     );
     expect(list.map((t) => [t.jobId, t.kind])).toEqual([
       ["2", "next_step"],
+      ["2", "interview_prep"],
       ["3", "expiring"],
       ["1", "follow_up"],
     ]);
@@ -96,5 +107,16 @@ describe("todos", () => {
     const jobs = [job({ id: "1", status: "interesting" }), job({ id: "2", status: "applied", statusChangedAt: "2026-11-09T00:00:00Z" }), job({ id: "3" })];
     expect(todos(jobs, undefined, now).filter((t) => t.kind === "research").map((t) => t.jobId)).toEqual(["1"]);
     expect(todos(jobs, undefined, now, researched("2026-08-01T00:00:00Z")).some((t) => t.kind === "research")).toBe(true);
+  });
+});
+
+describe("staleness", () => {
+  const now = Date.parse("2026-11-10T12:00:00Z");
+  const at = { foundAt: "2026-11-09T00:00:00Z" };
+  it("flags long-listed and repeatedly re-published offers", () => {
+    expect(staleness({ ...at, firstPublishedAt: "2026-11-01T00:00:00Z" }, now)).toBeUndefined();
+    expect(staleness({ ...at, firstPublishedAt: "2026-09-20T00:00:00Z" }, now)).toMatchObject({ level: "old", days: 51 });
+    expect(staleness({ ...at, firstPublishedAt: "2026-09-20T00:00:00Z", refreshCount: 2 }, now)?.text).toBe("Możliwa oferta-widmo: wystawiana od 51 dni, odświeżana 2×");
+    expect(staleness({ ...at, firstPublishedAt: "2026-07-01T00:00:00Z" }, now)?.level).toBe("ghost");
   });
 });

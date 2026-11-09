@@ -1,3 +1,4 @@
+import { followUpState, MAX_FOLLOW_UPS } from "./followup";
 import { bestMonthly } from "./salary";
 import type { CompanyInfo, Job, JobInput, Profile, Seniority, Status, WorkMode } from "./types";
 
@@ -65,6 +66,11 @@ export function matchedSkills(skills: string[], profile: SkillSource): Set<strin
   return new Set(skills.filter((s) => fold(s) && hay.includes(` ${fold(s)} `)));
 }
 
+/** The cities the user accepts for an on-site mode; empty = whole Poland. */
+export function citiesFor(profile: Pick<Profile, "locations" | "modeLocations">, mode: "hybrid" | "office"): string[] {
+  return profile.modeLocations?.[mode] ?? profile.locations;
+}
+
 /** Why an offer should not even reach the board, or undefined to keep it. */
 export function filterReason(input: JobInput, profile: Profile): string | undefined {
   const title = fold(input.title);
@@ -79,10 +85,15 @@ export function filterReason(input: JobInput, profile: Profile): string | undefi
   if (input.workMode && profile.workModes.length && !profile.workModes.includes(input.workMode)) {
     return `tryb ${input.workMode}`;
   }
-  if (input.workMode !== "remote" && profile.locations.length && input.location) {
+  if (input.workMode !== "remote" && input.location) {
+    // A known mode is checked against its own cities; an unknown one against any on-site mode the user wants.
+    const modes = input.workMode ? [input.workMode] : (["hybrid", "office"] as const).filter((m) => !profile.workModes.length || profile.workModes.includes(m));
+    const lists = modes.map((m) => citiesFor(profile, m));
     const loc = fold(input.location);
     const anywhere = /cala polska|whole poland|poland$|polska$/.test(loc);
-    if (!anywhere && !profile.locations.some((l) => loc.includes(fold(l)))) return `lokalizacja ${input.location}`;
+    if (lists.length && !lists.some((l) => !l.length) && !anywhere && !lists.flat().some((c) => loc.includes(fold(c)))) {
+      return `lokalizacja ${input.location}${input.workMode ? ` (${input.workMode})` : ""}`;
+    }
   }
   if (profile.minMonthlyPln && input.salaries?.length) {
     const best = bestMonthly(input.salaries);
@@ -98,7 +109,7 @@ export function isStale(job: Job, days: number, now = Date.now()): boolean {
 
 export interface Todo {
   jobId: string;
-  kind: "follow_up" | "next_step" | "expiring" | "outdated_fit" | "research";
+  kind: "follow_up" | "next_step" | "expiring" | "outdated_fit" | "research" | "interview_prep";
   text: string;
   date?: string;
 }
@@ -125,9 +136,15 @@ export function todos(jobs: Job[], cvHash: string | undefined, now = Date.now(),
     if (j.nextStep?.date && j.nextStep.date <= today && ACTIVE.includes(j.status)) {
       out.push({ jobId: j.id, kind: "next_step", text: `${j.nextStep.text} – ${who}`, date: j.nextStep.date });
     }
-    if (j.status === "applied" && !j.nextStep && isStale(j, 7, now)) {
-      const days = Math.floor((now - Date.parse(j.statusChangedAt)) / 86_400_000);
-      out.push({ jobId: j.id, kind: "follow_up", text: `Brak odpowiedzi od ${days} dni – przypomnij się: ${who}` });
+    const fu = followUpState(j, now);
+    if (fu?.due) {
+      const again = fu.count ? ` (${fu.count + 1}. raz)` : "";
+      out.push({ jobId: j.id, kind: "follow_up", text: `Brak odpowiedzi od ${fu.quietDays} dni – przypomnij się${again}: ${who}` });
+    } else if (fu?.giveUp) {
+      out.push({ jobId: j.id, kind: "follow_up", text: `Cisza mimo ${MAX_FOLLOW_UPS} przypomnień – rozważ zamknięcie: ${who}` });
+    }
+    if (j.status === "interview" && !j.documents?.prep) {
+      out.push({ jobId: j.id, kind: "interview_prep", text: `Przygotuj się do rozmowy: ${who}`, date: j.nextStep?.date });
     }
     if ((j.status === "interesting" || j.status === "applying") && j.expiresAt) {
       const left = (Date.parse(j.expiresAt) - now) / 86_400_000;
@@ -160,4 +177,28 @@ export function compareJobs(a: Job, b: Job): number {
   const mb = b.stackMatch ?? -1;
   if (ma !== mb) return mb - ma;
   return (b.publishedAt ?? b.foundAt).localeCompare(a.publishedAt ?? a.foundAt);
+}
+
+export interface Staleness {
+  /** Days since the earliest known publication. */
+  days: number;
+  level: "old" | "ghost";
+  text: string;
+}
+
+/**
+ * Offers listed for months, or re-published again and again, are often not really being filled
+ * ("ghost jobs") – worth a question before investing in an application.
+ */
+export function staleness(job: Pick<Job, "firstPublishedAt" | "publishedAt" | "foundAt" | "refreshCount">, now = Date.now()): Staleness | undefined {
+  const first = [job.firstPublishedAt, job.publishedAt, job.foundAt].filter((d): d is string => !!d && !Number.isNaN(Date.parse(d))).sort()[0];
+  if (!first) return undefined;
+  const days = Math.floor((now - Date.parse(first)) / 86_400_000);
+  const refreshes = job.refreshCount ?? 0;
+  const again = refreshes ? `, odświeżana ${refreshes}×` : "";
+  if (days >= 90 || (days >= 45 && refreshes >= 2)) {
+    return { days, level: "ghost", text: `Możliwa oferta-widmo: wystawiana od ${days} dni${again}` };
+  }
+  if (days >= 45) return { days, level: "old", text: `Wystawiana od ${days} dni${again}` };
+  return undefined;
 }

@@ -24,6 +24,10 @@ export async function plnRates(): Promise<Record<string, number>> {
   }
 }
 
+function earliest(...dates: (string | undefined)[]): string | undefined {
+  return dates.filter((d): d is string => !!d && !Number.isNaN(Date.parse(d))).sort()[0];
+}
+
 export interface IngestResult {
   added: Job[];
   merged: number;
@@ -57,7 +61,15 @@ export function ingest(db: Db, inputs: JobInput[], profile: Profile, rates: Reco
       existing.workMode ??= input.workMode;
       existing.seniority ??= input.seniority;
       existing.summary ??= input.summary;
-      if (input.publishedAt && (!existing.publishedAt || input.publishedAt > existing.publishedAt)) existing.publishedAt = input.publishedAt;
+      if (input.publishedAt && (!existing.publishedAt || input.publishedAt > existing.publishedAt)) {
+        // Re-published (bumped) more than a day after the date we knew: count it.
+        if (existing.publishedAt && Date.parse(input.publishedAt) - Date.parse(existing.publishedAt) > 86_400_000) {
+          existing.refreshCount = (existing.refreshCount ?? 0) + 1;
+        }
+        existing.publishedAt = input.publishedAt;
+      }
+      const first = earliest(existing.firstPublishedAt, input.firstPublishedAt, input.publishedAt);
+      if (first) existing.firstPublishedAt = first;
       existing.updatedAt = now;
       res.merged++;
       continue;
@@ -88,6 +100,7 @@ export function ingest(db: Db, inputs: JobInput[], profile: Profile, rates: Reco
       description: input.description,
       descriptionFetchedAt: input.description ? now : undefined,
       publishedAt: input.publishedAt,
+      firstPublishedAt: earliest(input.firstPublishedAt, input.publishedAt),
       expiresAt: input.expiresAt,
       foundAt: now,
       updatedAt: now,

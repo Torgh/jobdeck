@@ -80,6 +80,7 @@ export function mapJustJoin(o: JjitOffer): JobInput {
     niceSkills: (o.niceToHaveSkills ?? []).map((s) => s.name),
     // publishedAt moves forward whenever the offer is refreshed; the list is sorted by it.
     publishedAt: o.publishedAt ?? o.lastPublishedAt,
+    firstPublishedAt: [o.publishedAt, o.lastPublishedAt].filter(Boolean).sort()[0],
     expiresAt: o.expiredAt,
   };
 }
@@ -150,6 +151,7 @@ export function mapNoFluff(p: NfjPosting): JobInput {
         : [],
     skills: (p.tiles?.values ?? []).filter((t) => t.type === "requirement").map((t) => t.value),
     publishedAt: at ? new Date(at).toISOString() : undefined,
+    firstPublishedAt: p.posted ? new Date(p.posted).toISOString() : undefined,
   };
 }
 
@@ -274,11 +276,182 @@ export async function pageDescription(url: string): Promise<string> {
   return htmlToText(main).slice(0, 20_000);
 }
 
+// ───────────────────────────── Bulldogjob ─────────────────────────────
+
+interface BulldogJob {
+  id: string;
+  position: string;
+  company?: { name?: string; logo?: { url?: string } };
+  city?: string;
+  remote?: boolean;
+  experienceLevel?: string;
+  technologyTags?: string[];
+  showSalary?: boolean;
+  denominatedSalaryLong?: { money?: string | null; currency?: string | null };
+  contractB2b?: boolean | null;
+  contractEmployment?: boolean | null;
+}
+
+export function mapBulldog(j: BulldogJob): JobInput {
+  const contract: Contract | undefined = j.contractB2b && !j.contractEmployment ? "b2b" : j.contractEmployment && !j.contractB2b ? "uop" : undefined;
+  const money = j.showSalary !== false ? j.denominatedSalaryLong?.money : undefined;
+  const salary = money ? parseSalaryText(`${money} ${j.denominatedSalaryLong?.currency ?? "PLN"}`, contract) : undefined;
+  if (salary && contract === "uop") salary.gross ??= true;
+  return {
+    title: j.position,
+    company: j.company?.name ?? "",
+    url: `https://bulldogjob.pl/companies/jobs/${j.id}`,
+    externalId: j.id,
+    source: "bulldogjob",
+    logo: j.company?.logo?.url,
+    location: j.city,
+    workMode: j.remote ? "remote" : undefined,
+    seniority: j.experienceLevel === "medium" ? "mid" : seniorityFrom(j.experienceLevel),
+    salaries: salary ? [salary] : [],
+    skills: j.technologyTags ?? [],
+  };
+}
+
+/** Bulldogjob lists by technology (its free-text search is not in the page data): "kotlin backend" → "Kotlin". */
+const bulldogSkill = (keyword: string) => {
+  const w = keyword.trim().split(/\s+/)[0] ?? "";
+  return w.length <= 3 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1);
+};
+
+const bulldogjob: Source = {
+  id: "bulldogjob",
+  async search(keyword) {
+    // No publication dates in the list: every offer comes back, the merge skips the ones already on the board.
+    const html = await fetchText(`https://bulldogjob.pl/companies/jobs/s/skills,${enc(bulldogSkill(keyword))}`);
+    const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+    if (!m) throw new Error("Bulldogjob: zmienił się format strony");
+    const jobs = (JSON.parse(m[1]) as { props: { pageProps: { jobs?: BulldogJob[] } } }).props.pageProps.jobs ?? [];
+    return jobs.filter((j) => !j.experienceLevel || j.experienceLevel !== "intern").map(mapBulldog);
+  },
+  details: (job) => pageDescription(job.url),
+};
+
+// ───────────────────────────── remote boards from abroad (opt-in) ─────────────────────────────
+
+/** Remote offers open to someone in Poland: worldwide, Europe / EU / EMEA / CET, or Poland itself. */
+export function openToPoland(restrictions: string[] | string | undefined): boolean {
+  const list = (Array.isArray(restrictions) ? restrictions : (restrictions ?? "").split(/[,;/]/)).map((s) => s.trim().toLowerCase()).filter(Boolean);
+  if (!list.length) return true;
+  return list.some((r) => /worldwide|anywhere|europe|\beu\b|emea|cet|poland|polska/.test(r));
+}
+
+interface RemotiveJob {
+  id: number;
+  url: string;
+  title: string;
+  company_name: string;
+  company_logo?: string;
+  tags?: string[];
+  publication_date?: string;
+  candidate_required_location?: string;
+  salary?: string;
+  description?: string;
+}
+
+export function mapRemotive(j: RemotiveJob): JobInput {
+  const salary = j.salary ? parseSalaryText(j.salary) : undefined;
+  return {
+    title: j.title,
+    company: j.company_name,
+    url: j.url,
+    externalId: String(j.id),
+    source: "remotive",
+    logo: j.company_logo,
+    location: j.candidate_required_location || "Zdalnie",
+    workMode: "remote",
+    seniority: seniorityFrom(j.title),
+    salaries: salary && salary.currency !== "PLN" ? [salary] : [],
+    skills: j.tags ?? [],
+    description: j.description ? htmlToText(j.description).slice(0, 20_000) : undefined,
+    publishedAt: j.publication_date ? `${j.publication_date.replace(/Z?$/, "Z")}` : undefined,
+  };
+}
+
+const remotive: Source = {
+  id: "remotive",
+  async search(keyword, { since }) {
+    // Remotive asks for at most a few requests a day and a link back to the offer (the card links to it).
+    const res = await fetchJson<{ jobs: RemotiveJob[] }>(`https://remotive.com/api/remote-jobs?category=software-dev&search=${enc(keyword)}&limit=100`);
+    // Its search is loose ("kotlin" also finds service-desk jobs): keep offers that actually mention the phrase.
+    const words = keyword.toLowerCase().split(/\s+/).filter(Boolean);
+    const mentions = (j: RemotiveJob) => {
+      const text = `${j.title} ${(j.tags ?? []).join(" ")} ${j.description ?? ""}`.toLowerCase();
+      return words.every((w) => text.includes(w));
+    };
+    return res.jobs
+      .filter((j) => openToPoland(j.candidate_required_location) && mentions(j))
+      .map(mapRemotive)
+      .filter((j) => newerThan(j.publishedAt, since));
+  },
+  details: async (job) => pageDescription(job.url),
+};
+
+interface HimalayasJob {
+  title: string;
+  companyName: string;
+  companyLogo?: string;
+  guid: string;
+  applicationLink?: string;
+  minSalary?: number | null;
+  maxSalary?: number | null;
+  salaryPeriod?: string;
+  currency?: string;
+  seniority?: string[];
+  locationRestrictions?: string[];
+  categories?: string[];
+  description?: string;
+  pubDate?: number;
+  expiryDate?: number;
+}
+
+const HIMALAYAS_PERIOD: Record<string, Period> = { hourly: "hour", daily: "day", monthly: "month", annual: "year", yearly: "year" };
+
+export function mapHimalayas(j: HimalayasJob): JobInput {
+  const period = HIMALAYAS_PERIOD[(j.salaryPeriod ?? "annual").toLowerCase()] ?? "year";
+  return {
+    title: j.title,
+    company: j.companyName,
+    url: j.guid,
+    externalId: j.guid,
+    source: "himalayas",
+    logo: j.companyLogo,
+    location: j.locationRestrictions?.length ? j.locationRestrictions.join(", ") : "Zdalnie (cały świat)",
+    workMode: "remote",
+    seniority: seniorityFrom(j.seniority?.join(" ") ?? j.title),
+    salaries: j.minSalary || j.maxSalary ? [{ min: j.minSalary ?? undefined, max: j.maxSalary ?? undefined, currency: j.currency ?? "USD", period, contract: "b2b" }] : [],
+    skills: [],
+    description: j.description ? htmlToText(j.description).slice(0, 20_000) : undefined,
+    publishedAt: j.pubDate ? new Date(j.pubDate * 1000).toISOString() : undefined,
+    expiresAt: j.expiryDate ? new Date(j.expiryDate * 1000).toISOString() : undefined,
+  };
+}
+
+const himalayas: Source = {
+  id: "himalayas",
+  async search(keyword, { since }) {
+    const out: JobInput[] = [];
+    for (let page = 1; page <= 3; page++) {
+      const res = await fetchJson<{ jobs: HimalayasJob[] }>(`https://himalayas.app/jobs/api/search?q=${enc(keyword)}&page=${page}`);
+      const fresh = res.jobs.filter((j) => openToPoland(j.locationRestrictions)).map(mapHimalayas).filter((j) => newerThan(j.publishedAt, since));
+      out.push(...fresh);
+      if (res.jobs.length < 20) break;
+      await pause(500);
+    }
+    return out;
+  },
+  details: async (job) => pageDescription(job.url),
+};
+
 /**
  * Portals the scanner searches itself. Pracuj.pl and theprotocol.it block automated requests, so their
  * offers come in through the e-mail alerts that Claude reads (add_jobs), like LinkedIn's.
  */
-export const SOURCE_IMPL: Partial<Record<SourceId, Source>> = { justjoin, nofluff, linkedin };
+export const SOURCE_IMPL: Partial<Record<SourceId, Source>> = { justjoin, nofluff, bulldogjob, linkedin, remotive, himalayas };
 
 export async function jobDescription(job: Pick<Job, "url" | "externalId" | "source">): Promise<string> {
   const impl = SOURCE_IMPL[job.source];

@@ -1,4 +1,4 @@
-import { companyKey } from "../jobs";
+import { companyKey, fold } from "../jobs";
 import {
   CLOSED_LABEL,
   STATUS_LABEL,
@@ -10,6 +10,8 @@ import {
   type Fit,
   type Job,
   type JobEvent,
+  type LearningItem,
+  type LearningPlan,
   type Status,
   type Verdict,
 } from "../types";
@@ -25,6 +27,8 @@ export interface JobPatch {
   starred?: boolean;
   nextStep?: { date?: string; text: string } | null;
   appliedAt?: string;
+  /** What the company proposed; null clears it. */
+  offered?: Job["offered"] | null;
 }
 
 export function pushEvent(job: Job, event: JobEvent) {
@@ -51,6 +55,11 @@ export function applyPatch(job: Job, patch: JobPatch, now = new Date().toISOStri
   if (patch.notes !== undefined) job.notes = patch.notes || undefined;
   if (patch.starred !== undefined) job.starred = patch.starred || undefined;
   if (patch.appliedAt !== undefined) job.appliedAt = patch.appliedAt || undefined;
+  if (patch.offered !== undefined) {
+    const o = patch.offered;
+    if (o && Number.isFinite(o.monthly) && o.monthly > 0 && (o.contract === "b2b" || o.contract === "uop")) job.offered = { monthly: Math.round(o.monthly), contract: o.contract };
+    else delete job.offered;
+  }
   if (patch.nextStep !== undefined) {
     if (patch.nextStep && patch.nextStep.text.trim()) job.nextStep = { text: patch.nextStep.text.trim(), date: patch.nextStep.date || undefined };
     else delete job.nextStep;
@@ -201,5 +210,30 @@ export function saveDocument(jobId: string, kind: DocKind, markdown: string, lan
     job.documents = docs;
     job.updatedAt = new Date().toISOString();
     return job;
+  });
+}
+
+/** Saves Claude's learning plan; items the user already ticked off stay ticked off. */
+export function saveLearningPlan(items: Omit<LearningItem, "done">[], basedOn?: string): Promise<LearningPlan> {
+  return updateDb((db) => {
+    const done = new Set((db.learningPlan?.items ?? []).filter((i) => i.done).map((i) => fold(i.skill)));
+    const plan: LearningPlan = {
+      items: items.map((i) => ({ ...i, resources: i.resources ?? [], ...(done.has(fold(i.skill)) && { done: true }) })),
+      createdAt: new Date().toISOString(),
+      basedOn,
+    };
+    db.learningPlan = plan;
+    return plan;
+  });
+}
+
+/** The user ticks a skill of the learning plan off (or back on). */
+export function setLearningDone(skill: string, done: boolean): Promise<LearningPlan> {
+  return updateDb((db) => {
+    const item = db.learningPlan?.items.find((i) => fold(i.skill) === fold(skill));
+    if (!db.learningPlan || !item) throw new NotFound(`Nie ma „${skill}” w planie nauki.`);
+    if (done) item.done = true;
+    else delete item.done;
+    return db.learningPlan;
   });
 }

@@ -1,14 +1,17 @@
 /** Shared data model of JobDeck: used by the board, the API routes, the scanner and the MCP server. */
 
-export const SOURCES = ["linkedin", "justjoin", "nofluff", "pracuj", "protocol", "other"] as const;
+export const SOURCES = ["linkedin", "justjoin", "nofluff", "bulldogjob", "pracuj", "protocol", "remotive", "himalayas", "other"] as const;
 export type SourceId = (typeof SOURCES)[number];
 
 export const SOURCE_LABEL: Record<SourceId, string> = {
   linkedin: "LinkedIn",
   justjoin: "Just Join IT",
   nofluff: "No Fluff Jobs",
+  bulldogjob: "Bulldogjob",
   pracuj: "Pracuj.pl",
   protocol: "theprotocol.it",
+  remotive: "Remotive",
+  himalayas: "Himalayas",
   other: "Inne",
 };
 
@@ -16,7 +19,10 @@ export const SOURCE_LABEL: Record<SourceId, string> = {
  * Sources the scanner searches by itself. LinkedIn's public search is opt-in (it throttles quickly);
  * LinkedIn and Pracuj.pl offers mainly arrive from their e-mail alerts, which Claude reads via Gmail.
  */
-export const SCANNABLE: SourceId[] = ["justjoin", "nofluff", "linkedin"];
+export const SCANNABLE: SourceId[] = ["justjoin", "nofluff", "bulldogjob", "linkedin", "remotive", "himalayas"];
+
+/** Remote job boards from abroad: a different market (often USD/EUR), so off unless the user wants them. */
+export const ABROAD: SourceId[] = ["remotive", "himalayas"];
 
 export const STATUSES = ["new", "interesting", "applying", "applied", "interview", "offer", "closed"] as const;
 export type Status = (typeof STATUSES)[number];
@@ -92,11 +98,12 @@ export interface Fit {
 }
 
 /** Something that happened with an application: a status change, an e-mail from the company, a note. */
-export const EVENT_KINDS = ["status", "sent", "reply", "interview_invite", "task", "rejection", "offer", "note"] as const;
+export const EVENT_KINDS = ["status", "sent", "follow_up", "reply", "interview_invite", "task", "rejection", "offer", "note"] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 export const EVENT_LABEL: Record<EventKind, string> = {
   status: "Zmiana etapu",
   sent: "Wysłano aplikację",
+  follow_up: "Przypomnienie (follow-up)",
   reply: "Odpowiedź",
   interview_invite: "Zaproszenie na rozmowę",
   task: "Zadanie rekrutacyjne",
@@ -107,6 +114,7 @@ export const EVENT_LABEL: Record<EventKind, string> = {
 export const EVENT_ICON: Record<EventKind, string> = {
   status: "→",
   sent: "📤",
+  follow_up: "🔔",
   reply: "✉️",
   interview_invite: "📅",
   task: "🧩",
@@ -133,9 +141,9 @@ export interface AppDoc {
   language?: "pl" | "en";
 }
 
-export const DOC_KINDS = ["cv", "letter"] as const;
+export const DOC_KINDS = ["cv", "letter", "prep"] as const;
 export type DocKind = (typeof DOC_KINDS)[number];
-export const DOC_LABEL: Record<DocKind, string> = { cv: "CV", letter: "List motywacyjny" };
+export const DOC_LABEL: Record<DocKind, string> = { cv: "CV", letter: "List motywacyjny", prep: "Przygotowanie do rozmowy" };
 
 export interface JobLink {
   source: SourceId;
@@ -168,6 +176,10 @@ export interface Job {
   description?: string;
   descriptionFetchedAt?: string;
   publishedAt?: string;
+  /** The earliest publication date any portal reported (re-published offers keep their first date here). */
+  firstPublishedAt?: string;
+  /** How many times the offer was re-published / bumped since JobDeck first saw it. */
+  refreshCount?: number;
   expiresAt?: string;
   foundAt: string;
   updatedAt: string;
@@ -184,8 +196,10 @@ export interface Job {
   nextStep?: { date?: string; text: string };
   /** The application's history, oldest first. */
   events?: JobEvent[];
-  /** CV and cover letter tailored for this offer. */
+  /** CV, cover letter and interview preparation tailored for this offer. */
   documents?: Partial<Record<DocKind, AppDoc>>;
+  /** What the company actually proposed (monthly PLN: B2B net, UoP gross), for the negotiation panel. */
+  offered?: { monthly: number; contract: "b2b" | "uop" };
 }
 
 export interface CvInfo {
@@ -198,8 +212,10 @@ export interface CvInfo {
 export interface Profile {
   /** Search phrases sent to the portals ("java", "kotlin backend"). */
   keywords: string[];
-  /** Cities; remote offers are always kept. Empty = whole Poland. */
+  /** Cities; remote offers are always kept. Empty = whole Poland. Fallback for modes without their own list. */
   locations: string[];
+  /** Cities per on-site mode (e.g. hybrid only in Wrocław); empty list = whole Poland. Remote is never limited. */
+  modeLocations?: Partial<Record<"hybrid" | "office", string[]>>;
   workModes: WorkMode[];
   seniority: Seniority[];
   contracts: Contract[];
@@ -215,6 +231,17 @@ export interface Profile {
   /** Free text: what the user is looking for, deal-breakers, the domain they want. */
   about?: string;
   cv?: CvInfo;
+  /** How the user would settle a B2B contract, for the "na rękę" estimates (lib/pay.ts). */
+  pay?: {
+    form?: "ryczalt" | "liniowy" | "skala";
+    ryczaltRate?: number;
+    zus?: "full" | "preferential" | "start";
+    sickness?: boolean;
+    costsMonthly?: number;
+    unpaidDays?: number;
+    /** UoP: higher employee costs for commuting from another town. */
+    commuting?: boolean;
+  };
   /** Getting-started steps the user ticks off themselves (the rest are detected). */
   onboarding?: { alerts?: boolean; gmail?: boolean; hidden?: boolean };
   updatedAt?: string;
@@ -262,6 +289,26 @@ export interface CompanyInfo {
   researchedAt: string;
 }
 
+/** One skill to learn, chosen by Claude from the gaps that recur in the ratings. */
+export interface LearningItem {
+  skill: string;
+  /** Why it is worth it: how many (good) offers ask for it. */
+  why: string;
+  /** A small project that shows the skill in the CV / on GitHub. */
+  project: string;
+  resources: { title: string; url: string }[];
+  /** "weekend", "2–3 tygodnie"… */
+  effort?: string;
+  done?: boolean;
+}
+
+export interface LearningPlan {
+  items: LearningItem[];
+  createdAt: string;
+  /** What it was based on, e.g. "38 ocenionych ofert z 90 dni". */
+  basedOn?: string;
+}
+
 export interface Db {
   version: number;
   jobs: Record<string, Job>;
@@ -270,6 +317,7 @@ export interface Db {
   companies?: Record<string, CompanyInfo>;
   /** Until when Claude has gone through the mailbox for replies from employers. */
   mailCheckedAt?: string;
+  learningPlan?: LearningPlan;
 }
 
 export const DEFAULT_PROFILE: Profile = {
@@ -280,7 +328,7 @@ export const DEFAULT_PROFILE: Profile = {
   contracts: ["b2b", "uop"],
   excludeKeywords: [],
   excludeCompanies: [],
-  sources: { linkedin: false, justjoin: true, nofluff: true, pracuj: true, protocol: true, other: true },
+  sources: { linkedin: false, justjoin: true, nofluff: true, bulldogjob: true, pracuj: true, protocol: true, remotive: false, himalayas: false, other: true },
   skills: [],
 };
 
@@ -301,5 +349,6 @@ export interface JobInput {
   summary?: string;
   description?: string;
   publishedAt?: string;
+  firstPublishedAt?: string;
   expiresAt?: string;
 }

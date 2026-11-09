@@ -7,7 +7,7 @@ import { DOC_KINDS, DOC_LABEL, EVENT_ICON, EVENT_LABEL, type DocKind, type Event
 import { api } from "./api";
 import { Markdown } from "./Markdown";
 
-const MANUAL_KINDS: Exclude<EventKind, "status">[] = ["note", "reply", "interview_invite", "task", "rejection", "offer"];
+const MANUAL_KINDS: Exclude<EventKind, "status">[] = ["note", "follow_up", "reply", "interview_invite", "task", "rejection", "offer"];
 
 /** The application's story: status changes, e-mails Claude found, the user's own entries. */
 export function Timeline({ job, onChanged }: { job: Job; onChanged: () => void }) {
@@ -95,10 +95,11 @@ export function Timeline({ job, onChanged }: { job: Job; onChanged: () => void }
   );
 }
 
-/** Tailored CV and cover letter: preview, edit, PDF (print view) and DOCX. */
+/** Tailored CV, cover letter and interview preparation: preview, edit, PDF (print view) and DOCX. */
 export function Documents({ job, onChanged }: { job: Job; onChanged: () => void }) {
   const available = DOC_KINDS.filter((k) => job.documents?.[k]);
-  const [tab, setTab] = useState<DocKind>(available[0] ?? "cv");
+  const interview = job.status === "interview" || job.status === "offer";
+  const [tab, setTab] = useState<DocKind>(interview && job.documents?.prep ? "prep" : (available[0] ?? "cv"));
   const [editing, setEditing] = useState<string>();
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string>();
@@ -114,6 +115,8 @@ export function Documents({ job, onChanged }: { job: Job; onChanged: () => void 
             <>
               Napisz w Claude: <i>„przygotuj CV i list do oferty {job.id}”</i> – dostaniesz wersję dopasowaną do tej oferty (PDF i DOCX).
             </>
+          ) : interview ? (
+            <PrepHint id={job.id} />
           ) : (
             "Dopasowane CV i list motywacyjny pojawią się tutaj, gdy poprosisz o nie Claude."
           )}
@@ -151,6 +154,7 @@ export function Documents({ job, onChanged }: { job: Job; onChanged: () => void 
           ))}
         </div>
       </div>
+      {interview && !job.documents?.prep && <PrepHint id={job.id} />}
       {doc ? (
         <>
           <div className="actions-row">
@@ -189,5 +193,13 @@ export function Documents({ job, onChanged }: { job: Job; onChanged: () => void 
         <p className="muted small">Brak – poproś Claude o {DOC_LABEL[tab].toLowerCase()} do tej oferty.</p>
       )}
     </section>
+  );
+}
+
+function PrepHint({ id }: { id: string }) {
+  return (
+    <p className="muted small">
+      🎯 Przed rozmową napisz w Claude: <i>„przygotuj mnie do rozmowy {id}”</i> – pytania techniczne z wymagań oferty, Twoje przykłady z CV (STAR), pytania do firmy z researchu i na co uważać.
+    </p>
   );
 }

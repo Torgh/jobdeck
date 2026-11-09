@@ -21,6 +21,8 @@ konkretną ofertę (Claude podaje takie linki).
 |---|---|
 | Just Join IT | skan przez publiczne API |
 | No Fluff Jobs | skan przez publiczne API |
+| Bulldogjob | skan listy ofert według technologii (pierwsze słowo frazy, np. „Kotlin”) |
+| Remotive, Himalayas | opcjonalnie: praca zdalna z zagranicy, tylko oferty otwarte dla Polski / Europy (domyślnie wyłączone) |
 | LinkedIn | **alerty e-mail** → Claude czyta je w Gmailu (`add_jobs`); opcjonalnie publiczna wyszukiwarka (domyślnie wyłączona) |
 | Pracuj.pl, theprotocol.it | **alerty e-mail** → Claude czyta je w Gmailu (`add_jobs`); te portale blokują automaty |
 | dowolny link | wklej go Claude'owi: „dodaj tę ofertę do JobDeck” |
@@ -66,6 +68,18 @@ Skan bez Claude'a: przycisk **Skanuj portale** na tablicy albo `bun run scan` (n
    szybki wskaźnik „% technologii” na kartach.
 4. Na LinkedInie ustaw alerty ofert pracy (codziennie, e-mail), to samo na Pracuj.pl.
 
+### Po wysłaniu aplikacji
+
+- **Follow-up** – po 7 dniach ciszy panel oferty podpowiada przypomnienie: gotowy szkic (PL/EN, neutralny
+  płciowo) do skopiowania albo otwarcia w poczcie, potem „Zapisz jako wysłane”. Po 2 przypomnieniach bez odpowiedzi
+  JobDeck proponuje zamknięcie.
+- **Przygotowanie do rozmowy** – w kolumnie Rozmowy: „przygotuj mnie do rozmowy <id>”. Claude zapisuje dokument
+  z pytaniami technicznymi, Twoimi przykładami (STAR), pytaniami do firmy i kwotą do podania (PDF / DOCX).
+- **Negocjacje** – na etapie Rozmowy / Oferta panel porównuje propozycję firmy z widełkami, rynkiem dla poziomu
+  i Twoim minimum, i podaje kwotę do zaproponowania z argumentami oraz „na rękę”.
+- **Plan nauki** – „zrób plan nauki z braków w JobDeck”: 3–5 najczęstszych braków z ocen, do każdego mały projekt
+  do CV i materiały; na stronie Rynek z odhaczaniem.
+
 ## Ocena dopasowania
 
 Claude porównuje treść CV z pełnym opisem oferty i przyznaje punkty (0–100):
@@ -91,6 +105,33 @@ Napisz w Claude: „przygotuj CV i list do oferty <id>”. Claude układa Twoje 
 (kolejność, akcenty, słowa kluczowe z ogłoszenia, które CV faktycznie potwierdza – bez dopisywania niczego) i krótki,
 konkretny list. W panelu oferty: podgląd, edycja, **PDF** (widok A4 → „Zapisz jako PDF”), **DOCX** i kopiowanie tekstu.
 
+## Kalkulator B2B ↔ UoP („na rękę”)
+
+🧮 na górnym pasku: UoP brutto i faktura B2B obok siebie – ryczałt, liniowy i skala – z rozbiciem na ZUS,
+zdrowotną, podatek i koszty, oraz ile musi wynosić faktura, żeby dorównać danej pensji na UoP. Twoje ustawienia
+(forma opodatkowania, ZUS, koszty, dni bez wynagrodzenia) zapisujesz raz, a każda oferta pokazuje
+„≈ … na rękę”; w Skrzynce można sortować po tej kwocie. Claude ma narzędzie `compare_pay` do rozmów o stawkach.
+Przepisy na 2026 r. są w `lib/pay.ts` (`PL_2026`) – szacunek bez ulg, PPK i wspólnego rozliczenia.
+
+## Rynek
+
+📊 na górnym pasku: co mówią zebrane oferty (30 / 90 dni / wszystko) –
+- widełki według poziomu (B2B netto i UoP brutto: mediana i środkowa połowa ofert) na tle Twojego minimum,
+- najczęściej wymagane technologie, z wyróżnieniem tych, których nie ma w CV (co warto doszlifować),
+- braki, które Claude najczęściej wskazuje w ocenach,
+- źródła: ile ofert, jak pasują, ile kończy się aplikacją i rozmową.
+
+Claude ma narzędzie `get_market_insights`: „co mówi rynek w JobDeck?”. To tylko oferty zebrane przez JobDeck
+(Twoje frazy i filtry), nie cały rynek.
+
+## Oferty-widma i Twój lejek
+
+- JobDeck pamięta najwcześniejszą datę publikacji i liczy ponowne publikacje. Oferta wystawiana od 45+ dni jest
+  oznaczona „⏳”, a od 90 dni (albo 45 dni i co najmniej 2 odświeżenia) – jako **możliwa oferta-widmo**, z radą,
+  żeby przed aplikacją zapytać, czy rekrutacja trwa.
+- Na stronie **Rynek** sekcja **Twój lejek**: wybrane → wysłane → odpowiedź → rozmowa → oferta, odsetek odpowiedzi
+  i rozmów, typowy czas do odpowiedzi, aplikacje bez odpowiedzi od 14+ dni i wysłane aplikacje tydzień po tygodniu.
+
 ## Research firm
 
 Gdy oznaczysz ofertę jako Ciekawą (albo dalej), firma trafia na listę „Do ogarnięcia”. Przy najbliższym
@@ -102,7 +143,7 @@ ofercie tej firmy. Research starszy niż 60 dni jest proponowany ponownie.
 ## Narzędzia MCP
 
 `get_overview`, `scan_portals`, `add_jobs`, `list_jobs`, `get_job`, `rate_jobs`, `save_company_research`,
-`log_events`, `save_document`, `get_document`, `update_job`, `get_profile`, `update_profile`, `import_cv`.
+`log_events`, `save_document`, `get_document`, `compare_pay`, `get_market_insights`, `update_job`, `get_profile`, `update_profile`, `import_cv`.
 
 ## Rozwój
 

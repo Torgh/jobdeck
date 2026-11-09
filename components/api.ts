@@ -12,7 +12,7 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 /** A change to a card; nextStep null clears it. */
-export type JobUpdate = Partial<Omit<Job, "nextStep">> & { nextStep?: Job["nextStep"] | null };
+export type JobUpdate = Partial<Omit<Job, "nextStep" | "offered">> & { nextStep?: Job["nextStep"] | null; offered?: Job["offered"] | null };
 
 const POLL_MS = 8000;
 
@@ -37,7 +37,7 @@ export function useBoard() {
     try {
       const d = await api<BoardData>("/api/jobs");
       setData((old) =>
-        old && old.version === d.version && old.profile.cvHash === d.profile.cvHash && JSON.stringify(old.profile.onboarding) === JSON.stringify(d.profile.onboarding)
+        old && old.version === d.version && JSON.stringify(old.profile) === JSON.stringify(d.profile) && old.mailCheckedAt === d.mailCheckedAt
           ? old
           : d,
       );
