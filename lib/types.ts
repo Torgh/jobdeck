@@ -202,6 +202,8 @@ export interface Job {
   offered?: { monthly: number; contract: "b2b" | "uop" };
   /** Test data (lib/demo.ts): removed together on request, never mixed with real offers. */
   demo?: boolean;
+  /** Every location is outside Poland (kept only from the remote boards abroad). */
+  abroad?: boolean;
 }
 
 export interface CvInfo {
@@ -357,4 +359,6 @@ export interface JobInput {
   publishedAt?: string;
   firstPublishedAt?: string;
   expiresAt?: string;
+  /** Every location of the offer is outside Poland (from the portal's coordinates). */
+  abroad?: boolean;
 }

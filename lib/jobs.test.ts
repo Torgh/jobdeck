@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterReason, jobKey, seniorityFrom, stackMatch, staleness, todos, workModeFrom } from "./jobs";
+import { filterReason, inboxMismatches, jobKey, matchesKeywords, seniorityFrom, stackMatch, staleness, todos, workModeFrom } from "./jobs";
 import { DEFAULT_PROFILE, type Job, type Profile } from "./types";
 
 const profile: Profile = { ...DEFAULT_PROFILE, locations: ["Kraków"], excludeKeywords: ["php"], minMonthlyPln: 20000 };
@@ -54,6 +54,50 @@ describe("filterReason", () => {
     // Unknown mode: only the enabled on-site modes count (office is off).
     expect(filterReason({ ...base, location: "Warszawa" }, p)).toMatch(/lokalizacja/);
     expect(filterReason({ ...base, location: "Wrocław, Fabryczna" }, p)).toBeUndefined();
+  });
+
+  it("checks a scan's offers against the phrases: title or skill tags, every word of a phrase", () => {
+    const kw = ["engineering manager", "head of engineering", "r&d manager"];
+    const leads: Profile = { ...profile, seniority: ["mid", "senior", "lead"] };
+    expect(matchesKeywords({ title: "Engineering Manager II, Extract" }, kw)).toBe(true);
+    expect(matchesKeywords({ title: "Head of Software Engineering" }, kw)).toBe(true);
+    expect(matchesKeywords({ title: "R&D Manager" }, kw)).toBe(true);
+    expect(matchesKeywords({ title: "Senior Data Engineer" }, kw)).toBe(false);
+    expect(matchesKeywords({ title: "Product Manager" }, kw)).toBe(false);
+    // The words must come in order and together, not scattered across the title.
+    expect(matchesKeywords({ title: "Senior Project Manager (Custom Application Development, AI)" }, ["development manager"])).toBe(false);
+    expect(matchesKeywords({ title: "Web Development Project Manager" }, ["development manager"])).toBe(false);
+    expect(matchesKeywords({ title: "Sr.Director, Platform Engineering" }, ["director of engineering"])).toBe(true);
+    expect(matchesKeywords({ title: "Backend Developer", skills: ["Java"] }, ["java"])).toBe(true);
+    expect(filterReason({ ...base, title: "Senior Product Manager" }, leads, { keywords: kw })).toBe("tytuł nie pasuje do fraz");
+    // Without the scan's phrases (offers added by hand or from alerts) the title is not checked.
+    expect(filterReason({ ...base, title: "Senior Product Manager" }, leads)).toBeUndefined();
+  });
+
+  it("respects the contract and skips offers abroad", () => {
+    const uop: Profile = { ...profile, contracts: ["uop"] };
+    const b2b = { currency: "PLN", period: "month" as const, contract: "b2b" as const, monthlyPln: { min: 25000, max: 30000 } };
+    const perm = { ...b2b, contract: "uop" as const };
+    expect(filterReason({ ...base, salaries: [b2b] }, uop)).toBe("umowa B2B");
+    expect(filterReason({ ...base, salaries: [b2b, perm] }, uop)).toBeUndefined();
+    expect(filterReason({ ...base }, uop)).toBeUndefined();
+    expect(filterReason({ ...base, workMode: "remote", location: "Monachium", abroad: true }, profile)).toMatch(/poza Polską/);
+    expect(filterReason({ ...base, source: "remotive", workMode: "remote", abroad: true }, profile)).toBeUndefined();
+  });
+
+  it("finds untouched new offers that the current filters would not let in", () => {
+    const p: Profile = { ...profile, keywords: ["engineering manager"], contracts: ["uop"], seniority: ["mid", "senior", "lead"] };
+    const jobs = [
+      job({ id: "1", title: "Product Manager" }),
+      job({ id: "2", title: "Engineering Manager" }),
+      job({ id: "3", title: "Product Manager", starred: true }),
+      job({ id: "4", title: "Product Manager", source: "linkedin" }),
+      job({ id: "5", title: "Engineering Manager", salaries: [{ currency: "PLN", period: "month", contract: "b2b" }] }),
+    ];
+    expect(inboxMismatches(jobs, p).map((m) => [m.job.id, m.reason])).toEqual([
+      ["1", "tytuł nie pasuje do fraz"],
+      ["5", "umowa B2B"],
+    ]);
   });
 
   it("skips excluded words, other cities, other levels, low pay", () => {

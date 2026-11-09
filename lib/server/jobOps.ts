@@ -1,4 +1,4 @@
-import { companyKey, fold } from "../jobs";
+import { companyKey, fold, inboxMismatches } from "../jobs";
 import {
   CLOSED_LABEL,
   STATUS_LABEL,
@@ -210,6 +210,20 @@ export function saveDocument(jobId: string, kind: DocKind, markdown: string, lan
     job.documents = docs;
     job.updatedAt = new Date().toISOString();
     return job;
+  });
+}
+
+/**
+ * Checks the inbox against the current filters. Without `apply` it only lists what does not fit; with it, removes
+ * those offers (untouched scan results, see inboxMismatches) as if they had been filtered out by the scan.
+ */
+export async function refilterInbox(apply: boolean): Promise<{ job: Job; reason: string }[]> {
+  if (!apply) return inboxMismatches(Object.values(readDb().jobs), readProfile());
+  const profile = readProfile();
+  return updateDb((db) => {
+    const found = inboxMismatches(Object.values(db.jobs), profile);
+    for (const { job } of found) delete db.jobs[job.id];
+    return found;
   });
 }
 

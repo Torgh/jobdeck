@@ -26,6 +26,9 @@ interface JjitOffer {
   companyName: string;
   companyLogoThumbUrl?: string;
   city?: string;
+  latitude?: number | string;
+  longitude?: number | string;
+  locations?: { city?: string; latitude?: number | string; longitude?: number | string }[];
   workplaceType?: string;
   experienceLevel?: string;
   publishedAt?: string;
@@ -51,7 +54,18 @@ interface JjitOffer {
 const JJIT_CONTRACT: Record<string, Contract> = { b2b: "b2b", permanent: "uop", mandate_contract: "uz" };
 const JJIT_PERIOD: Record<string, Period> = { hour: "hour", day: "day", month: "month", year: "year" };
 
+/** Poland's bounding box, roughly: enough to tell Warsaw from Munich or Lisbon. */
+export function inPoland(lat?: number | string, lon?: number | string): boolean | undefined {
+  const a = Number(lat);
+  const b = Number(lon);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || (a === 0 && b === 0)) return undefined;
+  return a >= 48.9 && a <= 55 && b >= 14 && b <= 24.2;
+}
+
 export function mapJustJoin(o: JjitOffer): JobInput {
+  const places = o.locations?.length ? o.locations : [{ city: o.city, latitude: o.latitude, longitude: o.longitude }];
+  const known = places.map((p) => inPoland(p.latitude, p.longitude)).filter((v): v is boolean => v !== undefined);
+  const cities = [...new Set(places.map((p) => p.city).filter((c): c is string => !!c))];
   const salaries: Salary[] = (o.employmentTypes ?? [])
     .filter((e) => e.currencySource !== "conversion" && (e.from || e.to))
     .map((e) => {
@@ -72,7 +86,9 @@ export function mapJustJoin(o: JjitOffer): JobInput {
     externalId: o.slug,
     source: "justjoin",
     logo: o.companyLogoThumbUrl || undefined,
-    location: o.city,
+    // All the offer's cities: a hybrid offer in "Warszawa, Wrocław" is a Wrocław offer too.
+    location: cities.length ? cities.join(", ") : o.city,
+    abroad: known.length > 0 && known.every((v) => !v),
     workMode: (o.workplaceType as WorkMode) === "remote" ? "remote" : workModeFrom(o.workplaceType),
     seniority: o.experienceLevel === "c_level" ? "lead" : seniorityFrom(o.experienceLevel),
     salaries,

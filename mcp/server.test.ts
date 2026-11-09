@@ -35,7 +35,7 @@ describe("JobDeck MCP server", () => {
   it("lists its tools", async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ["add_jobs", "compare_pay", "get_document", "get_job", "get_market_insights", "get_overview", "get_profile", "import_cv", "list_jobs", "log_events", "rate_jobs", "save_company_research", "save_document", "save_learning_plan", "scan_portals", "update_job", "update_profile"].sort(),
+      ["add_jobs", "compare_pay", "get_document", "get_job", "get_market_insights", "get_overview", "get_profile", "import_cv", "list_jobs", "log_events", "rate_jobs", "save_company_research", "refilter_inbox", "save_document", "save_learning_plan", "scan_portals", "update_job", "update_profile"].sort(),
     );
   });
 
