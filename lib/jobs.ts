@@ -158,7 +158,7 @@ export function todos(jobs: Job[], cvHash: string | undefined, now = Date.now(),
       }
     }
     const ck = companyKey(j.company);
-    if (ACTIVE.includes(j.status) && !researchAsked.has(ck)) {
+    if (ACTIVE.includes(j.status) && !j.demo && !researchAsked.has(ck)) {
       const info = companies?.[ck];
       if (!info || now - Date.parse(info.researchedAt) > RESEARCH_DAYS * 86_400_000) {
         researchAsked.add(ck);

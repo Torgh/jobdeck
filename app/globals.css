@@ -2151,6 +2151,19 @@ a.rating:hover {
   margin: 4px 0;
 }
 
+.demo-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 18px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--partial);
+  background: var(--partial-soft);
+  font-size: 14px;
+}
+
 /* ───────── offer detail tabs ───────── */
 .next-banner {
   display: flex;

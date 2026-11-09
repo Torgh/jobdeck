@@ -9,6 +9,8 @@
     "start": "next start -H 127.0.0.1 -p 3100",
     "mcp": "bun mcp/server.ts",
     "scan": "bun scripts/scan.ts",
+    "demo": "bun scripts/demo.ts",
+    "demo:clear": "bun scripts/demo.ts --clear",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",

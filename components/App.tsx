@@ -128,7 +128,7 @@ export function App() {
         {!data ? (
           <div className="placeholder">Wczytuję…</div>
         ) : view === "today" ? (
-          <Today data={data} pay={pay} onOpen={openJob} onTab={choose} onUpdate={update} onboarding={<Onboarding data={data} onScan={runScan} scanning={scanning} onSaved={load} />} />
+          <Today data={data} pay={pay} onOpen={openJob} onTab={choose} onUpdate={update} onReload={load} onboarding={<Onboarding data={data} onScan={runScan} scanning={scanning} onSaved={load} />} />
         ) : view === "inbox" ? (
           <Inbox
             key={linked?.id}
