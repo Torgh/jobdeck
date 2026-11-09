@@ -1,0 +1,22 @@
+# Weekly dependency updates, grouped so minor and patch bumps arrive as one PR per ecosystem.
+# CI checks each PR; majors come separately, to be read before merging.
+version: 2
+updates:
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
