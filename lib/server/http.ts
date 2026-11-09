@@ -39,6 +39,8 @@ export function htmlToText(html: string): string {
     .replace(/[ \t ]+/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
+    // List items one per line, without blank lines between them.
+    .replace(/\n+(?=• )/g, "\n")
     .trim();
 }
 

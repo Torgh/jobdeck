@@ -11,6 +11,8 @@ export interface BoardData {
   todos: Todo[];
   /** Research of the employers on the board, by companyKey(). */
   companies: Record<string, CompanyInfo>;
+  /** Until when Claude went through the mailbox for replies. */
+  mailCheckedAt?: string;
   profile: Pick<Profile, "skills" | "keywords" | "onboarding"> & { cvFileName?: string; cvHash?: string; cvText?: string };
 }
 

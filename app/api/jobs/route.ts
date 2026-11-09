@@ -16,6 +16,7 @@ export async function GET() {
       lastScan: db.scans.at(-1),
       todos: todos(jobs, profile.cv?.hash, Date.now(), db.companies),
       companies: db.companies ?? {},
+      mailCheckedAt: db.mailCheckedAt,
       profile: {
         skills: profile.skills,
         keywords: profile.keywords,
