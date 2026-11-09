@@ -46,7 +46,7 @@ export function FollowUp({ job, cvText, matched, onChanged }: { job: Job; cvText
   return (
     <section className={`box followup${state.due ? " due" : ""}`}>
       <div className="box-head">
-        <h3>🔔 Follow-up</h3>
+        <h3>Follow-up</h3>
         {!state.giveUp && (
           <button className="btn small" style={{ marginLeft: "auto" }} onClick={() => setOpen((o) => !o)}>
             {open ? "Zwiń" : "Szkic wiadomości"}

@@ -2,16 +2,20 @@
 
 import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { useEffect, useState } from "react";
+import { followUpState } from "@/lib/followup";
 import { ago } from "@/lib/format";
 import { compareJobs, companyResearch, staleness, type SkillSource } from "@/lib/jobs";
-import type { B2bSettings } from "@/lib/pay";
+import { bestOnHand, formatOnHand, type B2bSettings } from "@/lib/pay";
 import { formatSalary } from "@/lib/salary";
 import { CLOSED_LABEL, STATUS_LABEL, WORK_MODE_LABEL, type CompanyInfo, type Job, type Status } from "@/lib/types";
 import type { JobUpdate } from "./api";
 import { JobDetail } from "./JobDetail";
-import { Logo, ScoreRing } from "./ui";
+import { Icon, Logo, ScoreRing } from "./ui";
 
 const COLUMNS: Status[] = ["interesting", "applying", "applied", "interview", "offer"];
+/** The list shows the stages closest to a job first. */
+const GROUPS: Status[] = ["offer", "interview", "applied", "applying", "interesting"];
+const VIEW_KEY = "jobdeck.pipelineView";
 
 const HINT: Partial<Record<Status, string>> = {
   interesting: "Oferty oznaczone w Skrzynce jako ciekawe",
@@ -36,6 +40,22 @@ interface Props {
 export function Pipeline({ jobs, skills, cvHash, companies, pay, onUpdate, onReload, initialId }: Props) {
   const [openId, setOpenId] = useState<string | undefined>(initialId);
   const [showClosed, setShowClosed] = useState(false);
+  const [layout, setLayout] = useState<"list" | "kanban">("list");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(VIEW_KEY) === "kanban") setTimeout(() => setLayout("kanban"), 0);
+    } catch {
+      /* storage blocked */
+    }
+  }, []);
+  const pickLayout = (l: "list" | "kanban") => {
+    setLayout(l);
+    try {
+      localStorage.setItem(VIEW_KEY, l);
+    } catch {
+      /* storage blocked */
+    }
+  };
   const open = jobs.find((j) => j.id === openId);
   const columns = showClosed ? [...COLUMNS, "closed" as Status] : COLUMNS;
 
@@ -63,18 +83,34 @@ export function Pipeline({ jobs, skills, cvHash, companies, pay, onUpdate, onRel
     <div className={`pipeline${open ? " with-detail" : ""}`}>
       <div className="pipeline-board">
         <div className="pipeline-bar">
-          <span className="muted small">{active ? `${active} w toku · przeciągaj karty między etapami` : "Nic jeszcze nie jest w toku – oznacz oferty jako Ciekawe w Skrzynce."}</span>
-          <label className="muted small toggle">
-            <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} /> pokaż zamknięte
-          </label>
+          <span className="muted small">
+            {active ? `${active} w toku${layout === "kanban" ? " · przeciągaj karty między etapami" : ""}` : "Nic jeszcze nie jest w toku – oznacz oferty jako Ciekawe w Skrzynce."}
+          </span>
+          <span className="pipeline-tools">
+            <label className="muted small toggle">
+              <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} /> pokaż zamknięte
+            </label>
+            <span className="seg" role="group" aria-label="Widok">
+              <button className={layout === "list" ? "active" : ""} aria-pressed={layout === "list"} onClick={() => pickLayout("list")}>
+                <Icon name="list" size={15} /> Lista
+              </button>
+              <button className={layout === "kanban" ? "active" : ""} aria-pressed={layout === "kanban"} onClick={() => pickLayout("kanban")}>
+                <Icon name="columns" size={15} /> Kanban
+              </button>
+            </span>
+          </span>
         </div>
-        <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-          <div className="columns">
-            {columns.map((s) => (
-              <Column key={s} status={s} jobs={jobs.filter((j) => j.status === s).sort(compareJobs)} openId={openId} onOpen={setOpenId} companies={companies} />
-            ))}
-          </div>
-        </DndContext>
+        {layout === "list" ? (
+          <StageList jobs={jobs} stages={showClosed ? [...GROUPS, "closed"] : GROUPS} openId={openId} onOpen={setOpenId} pay={pay} />
+        ) : (
+          <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+            <div className="columns">
+              {columns.map((s) => (
+                <Column key={s} status={s} jobs={jobs.filter((j) => j.status === s).sort(compareJobs)} openId={openId} onOpen={setOpenId} companies={companies} />
+              ))}
+            </div>
+          </DndContext>
+        )}
       </div>
       {open && (
         <aside className="pipeline-detail">
@@ -155,5 +191,79 @@ function Card({ job, selected, onOpen, researched }: { job: Job; selected: boole
         )}
       </div>
     </button>
+  );
+}
+
+const GROUP_DOT: Record<Status, string> = {
+  new: "calm",
+  interesting: "calm",
+  applying: "warn",
+  applied: "good",
+  interview: "info",
+  offer: "strong",
+  closed: "calm",
+};
+
+/** What the row should say next: the planned step, or what needs attention, or where it stands. */
+function rowStep(job: Job, now: number): { text: string; tone: "info" | "warn" | "calm" } {
+  if (job.nextStep) {
+    const d = job.nextStep.date;
+    return { text: `${job.nextStep.text}${d ? ` · ${d.slice(8, 10)}.${d.slice(5, 7)}` : ""}`, tone: d && d <= new Date(now).toISOString().slice(0, 10) ? "warn" : "info" };
+  }
+  const fu = followUpState(job, now);
+  if (fu?.due) return { text: `Brak odpowiedzi ${fu.quietDays} dni · wyślij follow-up`, tone: "warn" };
+  if (fu?.giveUp) return { text: `Cisza mimo ${fu.count} przypomnień · rozważ zamknięcie`, tone: "warn" };
+  if (job.expiresAt && (job.status === "interesting" || job.status === "applying")) {
+    const left = Math.ceil((Date.parse(job.expiresAt) - now) / 86_400_000);
+    if (left >= 0 && left <= 3) return { text: `Wygasa za ${left} d`, tone: "warn" };
+  }
+  if (job.status === "closed") return { text: job.closedReason ? CLOSED_LABEL[job.closedReason] : "Zamknięte", tone: "calm" };
+  if (job.status === "interview") return { text: "Rozmowy w toku · przygotuj się", tone: "info" };
+  if (job.status === "offer") return { text: "Masz ofertę · negocjuj", tone: "info" };
+  if (job.status === "applied") return { text: "Czekasz na odpowiedź", tone: "calm" };
+  const docs = job.documents && (job.documents.cv || job.documents.letter);
+  return { text: docs ? "Dokumenty gotowe · wyślij aplikację" : "Poproś Claude o CV i list", tone: "calm" };
+}
+
+function StageList({ jobs, stages, openId, onOpen, pay }: { jobs: Job[]; stages: Status[]; openId?: string; onOpen: (id: string) => void; pay: B2bSettings }) {
+  const [now] = useState(() => Date.now());
+  const groups = stages.map((s) => ({ s, list: jobs.filter((j) => j.status === s).sort(compareJobs) })).filter((g) => g.list.length);
+  if (!groups.length) return <div className="placeholder">Tu pojawią się oferty, które oznaczysz jako Ciekawe.</div>;
+  return (
+    <div className="stage-list">
+      {groups.map(({ s, list }) => (
+        <section key={s} className="stage">
+          <h2>
+            <span className={`stage-dot ${GROUP_DOT[s]}`} />
+            {STATUS_LABEL[s]}
+            <span className="muted">{list.length}</span>
+          </h2>
+          {list.map((j) => {
+            const step = rowStep(j, now);
+            const net = bestOnHand(j.salaries, pay);
+            const place = j.workMode === "remote" ? WORK_MODE_LABEL.remote : [j.workMode && WORK_MODE_LABEL[j.workMode], j.location].filter(Boolean).join(" · ");
+            return (
+              <button key={j.id} className={`stage-row${openId === j.id ? " selected" : ""}`} onClick={() => onOpen(j.id)}>
+                <Logo src={j.logo} name={j.company} size={36} />
+                <span className="stage-main">
+                  <span className="stage-title">
+                    {j.starred && <span className="star">★ </span>}
+                    {j.title}
+                  </span>
+                  <span className="stage-sub">
+                    {j.company}
+                    {place && ` · ${place}`}
+                  </span>
+                </span>
+                <ScoreRing fit={j.fit} stack={j.stackMatch} size={34} />
+                <span className="stage-net">{net != null ? formatOnHand({ max: net }).replace(" na rękę", "") : "—"}</span>
+                <span className={`stage-step ${step.tone}`}>{step.text}</span>
+                <span className="stage-when muted small">{j.appliedAt ? `wysłano ${ago(j.appliedAt + "T12:00:00Z")}` : ago(j.statusChangedAt)}</span>
+              </button>
+            );
+          })}
+        </section>
+      ))}
+    </div>
   );
 }

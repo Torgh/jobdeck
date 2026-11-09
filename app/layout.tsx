@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "JobDeck",
   description: "Szukanie pracy w IT: oferty z portali i LinkedIna, ocena dopasowania do CV.",
-  icons: { icon: "/icon.svg" },
+  icons: { icon: "/favicon.svg" },
 };
 
 export const viewport: Viewport = {

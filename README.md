@@ -4,15 +4,19 @@ Osobisty tracker szukania pracy w IT. Oferty z polskich portali i LinkedIna traf
 a Claude (przez serwer MCP, na Twojej subskrypcji, bez klucza API) ocenia, jak bardzo pasują do Twojego CV.
 Działa na tej samej zasadzie co TripDeck: Claude pracuje przez narzędzia, a Ty na żywo widzisz zmiany w aplikacji.
 
-Dwa widoki:
+Trzy widoki:
 
+- **Dziś** (start) – co jest do zrobienia, z przyciskiem przy każdej rzeczy (rozmowa → przygotowanie, cisza →
+  szkic follow-upu, wygasająca oferta), 3 najlepsze nowe oferty do decyzji jednym kliknięciem, stan pipeline'u,
+  tydzień i następny punkt planu nauki.
 - **Skrzynka** – nowe oferty jako lista (najlepiej ocenione na górze) z otwartą ofertą obok. Szybkie decyzje
   myszką albo klawiaturą: `J`/`K` następna/poprzednia, `S` ciekawe, `X` nie dla mnie, `F` gwiazdka, `O` otwórz na
   portalu, `Z` cofnij, `/` szukaj.
-- **Pipeline** – kanban tylko dla tego, co w toku: Ciekawe → Aplikuję → Wysłane → Rozmowy → Oferta (+ Zamknięte).
+- **Pipeline** – to, co w toku, jako lista pogrupowana po etapach (każda aplikacja w jednym wierszu z następnym
+  krokiem) albo kanban: Ciekawe → Aplikuję → Wysłane → Rozmowy → Oferta (+ Zamknięte).
 
-Pasek **Dziś** pokazuje nowe oferty, oceny do zrobienia, wysłane aplikacje i rozmowy, a **Do ogarnięcia** –
-follow-upy, terminy, wygasające oferty i firmy do sprawdzenia. Link `http://127.0.0.1:3100/?job=<id>` otwiera
+Panel oferty ma zakładki: Dopasowanie, Oferta (opis), Firma (research) i Aplikacja (follow-up, negocjacje,
+dokumenty, następny krok, historia, notatki). Link `http://127.0.0.1:3100/?job=<id>` otwiera
 konkretną ofertę (Claude podaje takie linki).
 
 ## Skąd biorą się oferty

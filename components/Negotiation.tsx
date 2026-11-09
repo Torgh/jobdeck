@@ -54,7 +54,7 @@ export function NegotiationBox({ job, pay, onUpdate }: { job: Job; pay: B2bSetti
 
   return (
     <section className="box negotiation">
-      <h3>💬 Negocjacje</h3>
+      <h3>Negocjacje</h3>
       <div className="nego-input">
         <label className="small muted" htmlFor={`offered-${job.id}`}>
           Propozycja firmy (mies.)

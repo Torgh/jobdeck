@@ -177,7 +177,7 @@ export function Inbox({ jobs, skills, cvHash, companies, pay, onUpdate, onReload
               </div>
             </button>
           ))}
-          {!list.length && <div className="rows-empty">{newCount ? "Nic nie pasuje do filtrów." : empty}</div>}
+          {!list.length && <div className="rows-empty">{newCount ? "Nic nie pasuje do filtrów." : "Brak nowych ofert."}</div>}
         </div>
         <div className="keys muted small">
           <Kbd>J</Kbd>
