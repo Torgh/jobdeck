@@ -10,5 +10,8 @@ sharing one data folder (`JOBDECK_HOME`, see `lib/server/store.ts`). UI and tool
 - Scan + merge: `lib/server/ingest.ts`. Every write goes through `updateDb` / `updateProfile` (cross-process lock).
 - UI: `components/App.tsx` (tabs, Dziś bar, onboarding) → `Inbox.tsx` (list + detail, keyboard) and `Pipeline.tsx`
   (kanban of active statuses); `JobDetail.tsx` is shared. Data hook with polling + undo: `components/api.ts`.
+- Application history (`job.events`, `logEvents` in `lib/server/jobOps.ts`): e-mail events move cards; status
+  changes made on the board are recorded too. Tailored docs (`job.documents`) are Markdown (`lib/markdown.ts`),
+  rendered in `components/Markdown.tsx`, `/print` (A4 → PDF) and `lib/server/docx.ts`.
 - Company research (`save_company_research`) is stored per `companyKey()` in `db.companies`.
 - `bun run check` before committing. Personal data (CV, offers) never goes into the repo.

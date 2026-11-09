@@ -138,9 +138,9 @@ export function App() {
         {!data ? (
           <div className="placeholder">Wczytuję…</div>
         ) : view === "inbox" ? (
-          <Inbox key={linked?.id} initialId={linked?.id} jobs={jobs} skills={skills} cvHash={data.profile.cvHash} companies={companies} onUpdate={update} onUndo={undoLast} empty={<Onboarding data={data} onScan={runScan} scanning={scanning} onSaved={load} />} />
+          <Inbox key={linked?.id} initialId={linked?.id} jobs={jobs} skills={skills} cvHash={data.profile.cvHash} companies={companies} onUpdate={update} onReload={load} onUndo={undoLast} empty={<Onboarding data={data} onScan={runScan} scanning={scanning} onSaved={load} />} />
         ) : (
-          <Pipeline key={linked?.id} initialId={linked?.id} jobs={jobs} skills={skills} cvHash={data.profile.cvHash} companies={companies} onUpdate={update} />
+          <Pipeline key={linked?.id} initialId={linked?.id} jobs={jobs} skills={skills} cvHash={data.profile.cvHash} companies={companies} onUpdate={update} onReload={load} />
         )}
       </main>
 
@@ -177,6 +177,9 @@ function TodayBar({ data, open, onToggle }: { data: BoardData; open: boolean; on
         </span>
       ))}
       <span className="spacer" />
+      <span className="muted small" title="Kiedy Claude ostatnio sprawdził odpowiedzi od firm w Gmailu">
+        📬 {data.mailCheckedAt ? `maile sprawdzone ${agoTime(data.mailCheckedAt)}` : "maile niesprawdzane"}
+      </span>
       <button className={`btn small${data.todos.length ? " attention" : ""}`} onClick={onToggle} disabled={!data.todos.length}>
         Do ogarnięcia <b>{data.todos.length}</b> {data.todos.length ? (open ? "▴" : "▾") : ""}
       </button>

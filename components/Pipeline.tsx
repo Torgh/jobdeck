@@ -26,11 +26,12 @@ interface Props {
   cvHash?: string;
   companies: Record<string, CompanyInfo>;
   onUpdate: (ids: string[], patch: JobUpdate, undoLabel?: string) => void;
+  onReload: () => void;
   initialId?: string;
 }
 
 /** The applications in progress as a kanban, with the open card beside it. */
-export function Pipeline({ jobs, skills, cvHash, companies, onUpdate, initialId }: Props) {
+export function Pipeline({ jobs, skills, cvHash, companies, onUpdate, onReload, initialId }: Props) {
   const [openId, setOpenId] = useState<string | undefined>(initialId);
   const [showClosed, setShowClosed] = useState(false);
   const open = jobs.find((j) => j.id === openId);
@@ -82,6 +83,7 @@ export function Pipeline({ jobs, skills, cvHash, companies, onUpdate, initialId 
             skills={skills}
             cvHash={cvHash}
             companies={companies}
+            onReload={onReload}
             onClose={() => setOpenId(undefined)}
             onUpdate={(patch, label) => onUpdate([open.id], patch, label)}
           />
@@ -141,6 +143,7 @@ function Card({ job, selected, onOpen, researched }: { job: Job; selected: boole
         ) : (
           <span className="muted">{job.appliedAt ? `wysłano ${ago(job.appliedAt + "T12:00:00Z")}` : ago(job.statusChangedAt)}</span>
         )}
+        {job.documents && Object.keys(job.documents).length > 0 && <span title="Ma dopasowane dokumenty">📄</span>}
         {!researched && job.status !== "closed" && (
           <span className="muted" title="Firma jeszcze nie sprawdzona">
             🏢?

@@ -29,6 +29,7 @@ interface Props {
   cvHash?: string;
   companies: Record<string, CompanyInfo>;
   onUpdate: (ids: string[], patch: JobUpdate, undoLabel?: string) => void;
+  onReload: () => void;
   onUndo: () => void;
   empty: React.ReactNode;
   initialId?: string;
@@ -37,7 +38,7 @@ interface Props {
 const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName));
 
 /** New offers as a list beside the open one: sort them out quickly, by mouse or keyboard. */
-export function Inbox({ jobs, skills, cvHash, companies, onUpdate, onUndo, empty, initialId }: Props) {
+export function Inbox({ jobs, skills, cvHash, companies, onUpdate, onReload, onUndo, empty, initialId }: Props) {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<SourceId | "">("");
   const [rated, setRated] = useState<"all" | "rated" | "unrated">("all");
@@ -186,6 +187,7 @@ export function Inbox({ jobs, skills, cvHash, companies, onUpdate, onUndo, empty
             skills={skills}
             cvHash={cvHash}
             companies={companies}
+            onReload={onReload}
             onClose={() => setMobileOpen(false)}
             onUpdate={(patch, label) => (label ? decide(patch, label) : onUpdate([selected.id], patch))}
           />

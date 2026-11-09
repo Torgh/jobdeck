@@ -19,6 +19,7 @@ import {
   type Status,
 } from "@/lib/types";
 import { api, type JobUpdate } from "./api";
+import { Documents, Timeline } from "./Application";
 import { Kbd, Logo, ScoreRing } from "./ui";
 
 interface Props {
@@ -29,9 +30,11 @@ interface Props {
   companies: Record<string, CompanyInfo>;
   onUpdate: (patch: JobUpdate, undoLabel?: string) => void;
   onClose?: () => void;
+  /** Re-reads the board after a change made outside onUpdate (documents, history entries). */
+  onReload: () => void;
 }
 
-export function JobDetail({ job, mode, skills, cvHash, companies, onUpdate, onClose }: Props) {
+export function JobDetail({ job, mode, skills, cvHash, companies, onUpdate, onClose, onReload }: Props) {
   const [description, setDescription] = useState<{ id: string; text?: string; error?: string }>();
   const hits = useMemo(() => (skills ? matchedSkills([...job.skills, ...(job.niceSkills ?? [])], skills) : new Set<string>()), [job, skills]);
   const company = companyResearch(companies, job.company);
@@ -143,6 +146,8 @@ export function JobDetail({ job, mode, skills, cvHash, companies, onUpdate, onCl
         )}
       </section>
 
+      {(mode === "pipeline" || job.documents) && <Documents key={`${job.id}-docs`} job={job} onChanged={onReload} />}
+
       <CompanyBox company={company} job={job} />
 
       {(job.skills.length > 0 || !!job.niceSkills?.length) && (
@@ -165,6 +170,7 @@ export function JobDetail({ job, mode, skills, cvHash, companies, onUpdate, onCl
       )}
 
       {mode === "pipeline" && <NextStep key={job.id} job={job} onUpdate={onUpdate} />}
+      {mode === "pipeline" && <Timeline key={`${job.id}-tl`} job={job} onChanged={onReload} />}
       <Notes key={job.id} job={job} onUpdate={onUpdate} />
 
       <section>

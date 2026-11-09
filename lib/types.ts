@@ -91,6 +91,52 @@ export interface Fit {
   cvHash?: string;
 }
 
+/** Something that happened with an application: a status change, an e-mail from the company, a note. */
+export const EVENT_KINDS = ["status", "sent", "reply", "interview_invite", "task", "rejection", "offer", "note"] as const;
+export type EventKind = (typeof EVENT_KINDS)[number];
+export const EVENT_LABEL: Record<EventKind, string> = {
+  status: "Zmiana etapu",
+  sent: "Wysłano aplikację",
+  reply: "Odpowiedź",
+  interview_invite: "Zaproszenie na rozmowę",
+  task: "Zadanie rekrutacyjne",
+  rejection: "Odmowa",
+  offer: "Oferta",
+  note: "Notatka",
+};
+export const EVENT_ICON: Record<EventKind, string> = {
+  status: "→",
+  sent: "📤",
+  reply: "✉️",
+  interview_invite: "📅",
+  task: "🧩",
+  rejection: "✗",
+  offer: "🎉",
+  note: "📝",
+};
+
+export interface JobEvent {
+  at: string;
+  kind: EventKind;
+  text: string;
+  /** Who recorded it: the board, or Claude (from Gmail). */
+  by?: "app" | "claude";
+  /** For e-mails: sender and subject, so the user can find the message. */
+  from?: string;
+  subject?: string;
+}
+
+/** A document Claude tailored for this offer, as Markdown. */
+export interface AppDoc {
+  markdown: string;
+  updatedAt: string;
+  language?: "pl" | "en";
+}
+
+export const DOC_KINDS = ["cv", "letter"] as const;
+export type DocKind = (typeof DOC_KINDS)[number];
+export const DOC_LABEL: Record<DocKind, string> = { cv: "CV", letter: "List motywacyjny" };
+
 export interface JobLink {
   source: SourceId;
   url: string;
@@ -136,6 +182,10 @@ export interface Job {
   appliedAt?: string;
   /** Next thing to do (follow-up, interview) and its date. */
   nextStep?: { date?: string; text: string };
+  /** The application's history, oldest first. */
+  events?: JobEvent[];
+  /** CV and cover letter tailored for this offer. */
+  documents?: Partial<Record<DocKind, AppDoc>>;
 }
 
 export interface CvInfo {
@@ -218,6 +268,8 @@ export interface Db {
   scans: ScanRecord[];
   /** By companyKey(). */
   companies?: Record<string, CompanyInfo>;
+  /** Until when Claude has gone through the mailbox for replies from employers. */
+  mailCheckedAt?: string;
 }
 
 export const DEFAULT_PROFILE: Profile = {

@@ -14,12 +14,15 @@ import { compareJobs, companyResearch, seniorityFrom, todos } from "../lib/jobs"
 import { formatSalary, parseSalaryText } from "../lib/salary";
 import { saveCv } from "../lib/server/cv";
 import { addJobs, scan } from "../lib/server/ingest";
-import { jobWithDescription, patchJobs, rateJobs, saveCompany } from "../lib/server/jobOps";
+import { jobWithDescription, logEvents, patchJobs, rateJobs, saveCompany, saveDocument } from "../lib/server/jobOps";
 import { readDb, readProfile, updateProfile } from "../lib/server/store";
 import {
   CLOSED_LABEL,
   CLOSED_REASONS,
   CONTRACT_LABEL,
+  DOC_KINDS,
+  DOC_LABEL,
+  EVENT_LABEL,
   SENIORITIES,
   SOURCE_LABEL,
   SOURCES,
@@ -49,6 +52,32 @@ Routine ("co nowego?", run every second day or so):
    one line each on why, and what you set aside. Move clear mismatches to closed (not_for_me) only if the user agrees,
    or when they asked you to triage.
 5. Research the employers get_overview lists under "Sprawdź firmę" (offers the user marked as interesting or further).
+6. Replies from employers (Gmail): see "Mail" below.
+
+Mail – replies from employers (log_events), when you have Gmail tools:
+- get_overview lists the applications to watch and the date the mailbox was last checked. Search from that date
+  (minus a day) for each company's name and domain, and for recruiting systems that send on their behalf
+  (greenhouse, lever, workable, teamtailor, smartrecruiters, recruitee, personio, erecruiter, pracuj.pl "Twoja aplikacja",
+  LinkedIn "Your application was sent / viewed"), in Polish and English.
+- Classify each relevant message: sent (confirmation that the application arrived), reply (any other answer),
+  interview_invite (with the date as date, and "Rozmowa …" as text), task (home assignment, deadline as date),
+  rejection, offer. One event per message; text = one Polish sentence with the substance; from and subject so the
+  user can find it. The board then moves the card (invite → Rozmowy, rejection → Zamknięte, offer → Oferta).
+- Only messages clearly about one of the user's applications; when unsure which offer it is, ask. Never invent dates.
+- Always pass checked_until (now) when you went through the mailbox, even if nothing was found.
+- Report the findings briefly; suggest replies (e.g. confirming an interview slot) but do not send e-mails yourself.
+
+Tailored CV and cover letter (save_document), when the user applies or asks:
+- From get_profile (CV text, about) and get_job (description, fit gaps, company research). Write in the offer's
+  language (Polish offer → Polish, English → English).
+- CV: the user's real experience only – never invent skills, employers, dates, numbers or certificates. Tailor by
+  ordering and emphasis: a 2–3 line profile aimed at this role, the most relevant experience and achievements first,
+  the offer's keywords where the CV truthfully supports them (ATS), less relevant parts shortened. Keep contact data
+  from the CV. Markdown: "# Name", contact line, "## Section" headings, "- " bullets, **bold**. 1–2 pages.
+- Cover letter: max ~250 words, concrete: why this company (use the research), 2–3 matching achievements, what the
+  user wants to build there. No clichés, no repeating the CV. Same Markdown subset; greeting and sign-off with the name.
+- If something important is missing in the CV for this offer, say so to the user instead of filling it in.
+- The board shows the documents with PDF (print view) and DOCX downloads; the user may edit them there.
 
 Company research (save_company_research), with your web search / fetch tools:
 - What the company does, product company vs software house vs body leasing / outsourcing vs recruitment agency
@@ -81,7 +110,7 @@ and the description, then to applied once sent (it records the date). Use next_s
 
 Answer in the user's language (Polish). The board UI is in Polish.`;
 
-const server = new McpServer({ name: "jobdeck", title: "JobDeck", version: "0.2.0" }, { instructions: INSTRUCTIONS });
+const server = new McpServer({ name: "jobdeck", title: "JobDeck", version: "0.3.0" }, { instructions: INSTRUCTIONS });
 
 type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
 
@@ -146,6 +175,8 @@ function jobDetails(j: Job, company?: CompanyInfo): string {
     j.notes ? `Notatki: ${j.notes}` : "",
     j.nextStep ? `Następny krok: ${j.nextStep.text}${j.nextStep.date ? ` (${j.nextStep.date})` : ""}` : "",
     j.appliedAt ? `Wysłano: ${j.appliedAt}` : "",
+    j.events?.length ? `Historia:\n${j.events.map((e) => `  ${e.at.slice(0, 10)} ${EVENT_LABEL[e.kind]}: ${e.text}${e.subject ? ` [${e.subject}]` : ""}`).join("\n")}` : "",
+    `Dokumenty: ${DOC_KINDS.filter((k) => j.documents?.[k]).map((k) => `${DOC_LABEL[k]} (${j.documents![k]!.updatedAt.slice(0, 10)})`).join(", ") || "brak"}`,
     company ? `\n${companyText(company)}` : "Firma: brak researchu (save_company_research).",
     "",
     "## Opis",
@@ -185,6 +216,7 @@ server.registerTool(
     const unrated = jobs.filter((j) => j.status === "new" && !j.fit);
     const last = db.scans.at(-1);
     const todo = todos(jobs, profile.cv?.hash, Date.now(), db.companies);
+    const watch = jobs.filter((j) => ["applied", "interview", "offer"].includes(j.status) || (j.status === "applying" && j.appliedAt));
     const missing = [
       !profile.cv && "brak CV",
       !profile.keywords.length && "brak fraz wyszukiwania",
@@ -200,6 +232,11 @@ server.registerTool(
         : "Jeszcze nie skanowano.",
       missing.length ? `Do uzupełnienia w profilu: ${missing.join(", ")}` : "",
       todo.length ? `\nDo ogarnięcia:\n${todo.map((t) => `- [${t.jobId}] ${t.text}`).join("\n")}` : "Do ogarnięcia: nic.",
+      watch.length
+        ? `\nMail – aplikacje do obserwowania (sprawdzono skrzynkę: ${db.mailCheckedAt ? db.mailCheckedAt.slice(0, 16).replace("T", " ") : "nigdy"}):\n${watch
+            .map((j) => `- [${j.id}] ${j.company} – ${j.title} · ${STATUS_LABEL[j.status]}${j.appliedAt ? ` · wysłano ${j.appliedAt}` : ""}`)
+            .join("\n")}`
+        : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -491,6 +528,71 @@ server.registerTool(
       sources: a.sources ?? [],
     });
     return `Zapisano research firmy.\n${companyText(c)}`;
+  }),
+);
+
+server.registerTool(
+  "log_events",
+  {
+    title: "Log application events",
+    description:
+      "Records what happened with applications – mostly e-mails from employers found in Gmail – and moves the cards accordingly (follow the Mail rules in the server instructions). Pass checked_until after going through the mailbox.",
+    inputSchema: {
+      events: z
+        .array(
+          z.object({
+            job_id: z.string(),
+            kind: z.enum(["sent", "reply", "interview_invite", "task", "rejection", "offer", "note"]),
+            text: z.string().describe("One Polish sentence with the substance."),
+            at: z.string().optional().describe("When it happened (the e-mail's date), ISO."),
+            date: z.string().optional().describe("Interview date / task deadline, YYYY-MM-DD."),
+            from: z.string().optional(),
+            subject: z.string().optional(),
+          }),
+        )
+        .describe("May be empty when nothing new was found."),
+      checked_until: z.string().optional().describe("ISO time up to which the mailbox was checked (usually now)."),
+    },
+  },
+  tool(async ({ events, checked_until }: { events: Parameters<typeof logEvents>[0]; checked_until?: string }) => {
+    const jobs = await logEvents(events, checked_until);
+    const head = checked_until ? `Skrzynka sprawdzona do ${checked_until.slice(0, 16).replace("T", " ")}.` : "";
+    if (!jobs.length) return `${head} Brak nowych zdarzeń.`.trim();
+    return `${head}\nZapisano:\n${jobs.map((j) => `- ${oneLine(j)} → ${STATUS_LABEL[j.status]}${j.nextStep ? ` · ${j.nextStep.text}${j.nextStep.date ? ` (${j.nextStep.date})` : ""}` : ""}`).join("\n")}`.trim();
+  }),
+);
+
+server.registerTool(
+  "save_document",
+  {
+    title: "Save tailored CV / cover letter",
+    description:
+      "Saves a CV or cover letter tailored to one offer, as Markdown (follow the rules in the server instructions). Replaces the previous version; the board offers PDF and DOCX downloads.",
+    inputSchema: {
+      job_id: z.string(),
+      kind: z.enum(DOC_KINDS),
+      markdown: z.string().min(1),
+      language: z.enum(["pl", "en"]).optional(),
+    },
+  },
+  tool(async ({ job_id, kind, markdown, language }: { job_id: string; kind: (typeof DOC_KINDS)[number]; markdown: string; language?: "pl" | "en" }) => {
+    const job = await saveDocument(job_id, kind, markdown, language);
+    return `Zapisano ${DOC_LABEL[kind]} dla „${job.title} @ ${job.company}”. Podgląd i pobieranie: http://127.0.0.1:3100/?job=${job.id}`;
+  }),
+);
+
+server.registerTool(
+  "get_document",
+  {
+    title: "Get tailored document",
+    description: "The current Markdown of a tailored CV or cover letter (the user may have edited it on the board) – read it before revising.",
+    inputSchema: { job_id: z.string(), kind: z.enum(DOC_KINDS) },
+  },
+  tool(async ({ job_id, kind }: { job_id: string; kind: (typeof DOC_KINDS)[number] }) => {
+    const job = readDb().jobs[job_id];
+    if (!job) throw new Error(`Nie ma oferty o id "${job_id}".`);
+    const doc = job.documents?.[kind];
+    return doc ? `${DOC_LABEL[kind]} (zmieniony ${doc.updatedAt.slice(0, 16).replace("T", " ")}):\n\n${doc.markdown}` : `Brak dokumentu ${DOC_LABEL[kind]} dla tej oferty.`;
   }),
 );
 

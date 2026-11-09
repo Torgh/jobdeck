@@ -1064,3 +1064,234 @@ a.rating:hover {
     flex-basis: 80vw;
   }
 }
+
+/* ───────── application: history & documents ───────── */
+.btn.inline {
+  margin-left: 8px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  color: var(--accent);
+}
+.event-form {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.event-form input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+}
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 6px;
+  border-left: 2px solid var(--border);
+  display: grid;
+  gap: 12px;
+}
+.ev {
+  display: flex;
+  gap: 10px;
+  margin-left: -15px;
+}
+.ev-icon {
+  flex: 0 0 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+}
+.ev.interview_invite .ev-icon,
+.ev.offer .ev-icon {
+  background: var(--strong-soft);
+  border-color: transparent;
+}
+.ev.rejection .ev-icon {
+  background: var(--weak-soft);
+  color: var(--weak);
+  border-color: transparent;
+}
+.ev.status .ev-icon {
+  color: var(--muted);
+}
+.docs-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.seg {
+  display: flex;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 2px;
+}
+.seg button {
+  border: none;
+  background: none;
+  padding: 3px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.seg button.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.seg button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.actions-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
+}
+.doc-preview {
+  margin-top: 12px;
+  padding: 18px 22px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  max-height: 520px;
+  overflow-y: auto;
+  font-size: 13.5px;
+}
+.doc-preview h1 {
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+.doc-preview h2 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 16px 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border);
+}
+.doc-preview h3 {
+  font-size: 14px;
+  margin: 10px 0 2px;
+}
+.doc-preview p {
+  margin: 6px 0;
+}
+.doc-preview ul {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+.doc-edit textarea {
+  margin-top: 12px;
+  font: 13px/1.5 ui-monospace, "Cascadia Mono", monospace;
+}
+
+/* ───────── print view (CV / cover letter → PDF) ───────── */
+.print-page {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 0 16px 40px;
+}
+.print-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 0;
+  flex-wrap: wrap;
+}
+.sheet {
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #1f2937;
+  padding: 16mm 18mm;
+  box-shadow: var(--shadow-lg);
+  font-family: "Calibri", "Segoe UI", system-ui, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.45;
+  color-scheme: light;
+}
+.sheet a {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+.sheet h1 {
+  font-size: 22pt;
+  margin: 0 0 2pt;
+  color: #111827;
+  letter-spacing: -0.01em;
+}
+.sheet h2 {
+  font-size: 11pt;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4338ca;
+  margin: 14pt 0 5pt;
+  padding-bottom: 2pt;
+  border-bottom: 1px solid #c7d2fe;
+}
+.sheet h3 {
+  font-size: 11pt;
+  margin: 9pt 0 1pt;
+  color: #111827;
+}
+.sheet p {
+  margin: 4pt 0;
+}
+.sheet ul {
+  margin: 3pt 0 5pt;
+  padding-left: 15pt;
+}
+.sheet li {
+  margin: 1.5pt 0;
+}
+.sheet hr {
+  border: none;
+  border-top: 1px solid #d1d5db;
+  margin: 10pt 0;
+}
+.sheet.doc-letter {
+  font-size: 11pt;
+  line-height: 1.6;
+}
+.sheet.doc-letter p {
+  margin: 0 0 9pt;
+}
+@page {
+  size: A4;
+  margin: 0;
+}
+@media print {
+  .print-bar {
+    display: none;
+  }
+  .print-page {
+    padding: 0;
+    background: #fff;
+  }
+  .sheet {
+    box-shadow: none;
+    width: auto;
+    min-height: 0;
+  }
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+  li {
+    break-inside: avoid;
+  }
+}

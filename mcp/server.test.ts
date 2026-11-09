@@ -35,7 +35,7 @@ describe("JobDeck MCP server", () => {
   it("lists its tools", async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ["add_jobs", "get_job", "get_overview", "get_profile", "import_cv", "list_jobs", "rate_jobs", "save_company_research", "scan_portals", "update_job", "update_profile"].sort(),
+      ["add_jobs", "get_document", "get_job", "get_overview", "get_profile", "import_cv", "list_jobs", "log_events", "rate_jobs", "save_company_research", "save_document", "scan_portals", "update_job", "update_profile"].sort(),
     );
   });
 
@@ -99,6 +99,50 @@ describe("JobDeck MCP server", () => {
     // …and once researched, every offer from that company carries it.
     expect(await call("get_job", { job_id: id })).toMatch(/## Firma: ACME Sp\. z o\.o\.[\s\S]*GoWork\.pl 3\.9\/5 \(120 opinii\)/);
     expect(await call("get_overview")).not.toMatch(/Sprawdź firmę/);
+  });
+
+  it("tracks replies from the mailbox and moves the card", async () => {
+    const added = await call("add_jobs", {
+      jobs: [{ title: "Senior Kotlin Developer", company: "Gamma", url: "https://example.com/gamma", source: "other", work_mode: "remote" }],
+    });
+    const id = added.match(/\[([\w-]+)\]/)![1];
+    await call("update_job", { job_ids: [id], status: "applied" });
+    expect(await call("get_overview")).toMatch(/Mail – aplikacje do obserwowania \(sprawdzono skrzynkę: nigdy\)[\s\S]*Gamma/);
+
+    const res = await call("log_events", {
+      events: [
+        { job_id: id, kind: "reply", text: "Rekruterka dziękuje za CV i odezwie się w tym tygodniu.", at: "2026-11-10T09:00:00Z", subject: "Re: Senior Kotlin" },
+        { job_id: id, kind: "interview_invite", text: "Rozmowa techniczna online", at: "2026-11-11T10:00:00Z", date: "2026-11-14", subject: "Zaproszenie" },
+      ],
+      checked_until: "2026-11-11T12:00:00Z",
+    });
+    expect(res).toMatch(/Skrzynka sprawdzona do 2026-11-11 12:00/);
+    expect(res).toMatch(/→ Rozmowy · Rozmowa techniczna online \(2026-11-14\)/);
+    const job = await call("get_job", { job_id: id });
+    expect(job).toMatch(/2026-11-10 Odpowiedź: Rekruterka dziękuje/);
+    expect(job).toMatch(/Zaproszenie na rozmowę: Rozmowa techniczna online \[Zaproszenie\]/);
+    expect(job).toMatch(/status: Rozmowy/);
+    // The invitation itself explains the move: no extra "Zmiana etapu" entry for it.
+    expect(job).not.toMatch(/Zmiana etapu: Wysłane → Rozmowy/);
+    expect(job).toMatch(/Wysłano aplikację: Nowe → Wysłane/);
+    expect(await call("get_overview")).toMatch(/sprawdzono skrzynkę: 2026-11-11 12:00/);
+
+    // The same e-mail logged twice is recorded once; a rejection closes the card.
+    await call("log_events", { events: [{ job_id: id, kind: "reply", text: "x", at: "2026-11-10T09:00:00Z", subject: "Re: Senior Kotlin" }] });
+    expect((await call("get_job", { job_id: id })).match(/Odpowiedź:/g)).toHaveLength(1);
+    await call("log_events", { events: [{ job_id: id, kind: "rejection", text: "Wybrali innego kandydata." }] });
+    expect(await call("get_job", { job_id: id })).toMatch(/status: Zamknięte \(Odrzucili\)/);
+  });
+
+  it("stores tailored documents", async () => {
+    const added = await call("add_jobs", {
+      jobs: [{ title: "Backend Engineer", company: "Delta", url: "https://example.com/delta", source: "other", work_mode: "remote" }],
+    });
+    const id = added.match(/\[([\w-]+)\]/)![1];
+    expect(await call("get_document", { job_id: id, kind: "cv" })).toMatch(/Brak dokumentu CV/);
+    expect(await call("save_document", { job_id: id, kind: "cv", markdown: "# Jan Kowalski\n\n## Doświadczenie\n- Allegro" })).toMatch(/\?job=/);
+    expect(await call("get_document", { job_id: id, kind: "cv" })).toMatch(/# Jan Kowalski/);
+    expect(await call("get_job", { job_id: id })).toMatch(/Dokumenty: CV \(/);
   });
 
   it("reports errors as tool errors", async () => {

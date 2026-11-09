@@ -77,6 +77,20 @@ Claude porównuje treść CV z pełnym opisem oferty i przyznaje punkty (0–100
 
 80+ świetne · 65–79 dobre · 45–64 częściowe · poniżej 45 słabe. Po wgraniu nowego CV stare oceny są oznaczane jako nieaktualne.
 
+## Odpowiedzi od firm (Gmail)
+
+Przy „co nowego?” Claude przegląda Gmaila od ostatniego sprawdzenia: maile od firm, do których wysłałeś aplikację,
+i z systemów rekrutacyjnych (Greenhouse, Lever, Workable, Teamtailor, Pracuj.pl…). Każdą wiadomość zapisuje w
+**historii** oferty i przesuwa kartę: zaproszenie → Rozmowy (z datą jako następny krok), zadanie → termin,
+odmowa → Zamknięte, oferta → Oferta. Na tablicy możesz też sam dopisać wpis (np. telefon od rekrutera).
+Pasek „Dziś” pokazuje, kiedy maile były sprawdzane ostatnio.
+
+## Dopasowane CV i list motywacyjny
+
+Napisz w Claude: „przygotuj CV i list do oferty <id>”. Claude układa Twoje prawdziwe doświadczenie pod tę ofertę
+(kolejność, akcenty, słowa kluczowe z ogłoszenia, które CV faktycznie potwierdza – bez dopisywania niczego) i krótki,
+konkretny list. W panelu oferty: podgląd, edycja, **PDF** (widok A4 → „Zapisz jako PDF”), **DOCX** i kopiowanie tekstu.
+
 ## Research firm
 
 Gdy oznaczysz ofertę jako Ciekawą (albo dalej), firma trafia na listę „Do ogarnięcia”. Przy najbliższym
@@ -88,7 +102,7 @@ ofercie tej firmy. Research starszy niż 60 dni jest proponowany ponownie.
 ## Narzędzia MCP
 
 `get_overview`, `scan_portals`, `add_jobs`, `list_jobs`, `get_job`, `rate_jobs`, `save_company_research`,
-`update_job`, `get_profile`, `update_profile`, `import_cv`.
+`log_events`, `save_document`, `get_document`, `update_job`, `get_profile`, `update_profile`, `import_cv`.
 
 ## Rozwój
 
