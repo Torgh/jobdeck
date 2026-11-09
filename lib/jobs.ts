@@ -111,6 +111,8 @@ export interface Todo {
   jobId: string;
   kind: "follow_up" | "next_step" | "expiring" | "outdated_fit" | "research" | "interview_prep";
   text: string;
+  /** The same without the offer's name, for lists that show the offer beside it. */
+  short: string;
   date?: string;
 }
 
@@ -134,22 +136,25 @@ export function todos(jobs: Job[], cvHash: string | undefined, now = Date.now(),
   for (const j of jobs) {
     const who = `${j.title} @ ${j.company}`;
     if (j.nextStep?.date && j.nextStep.date <= today && ACTIVE.includes(j.status)) {
-      out.push({ jobId: j.id, kind: "next_step", text: `${j.nextStep.text} – ${who}`, date: j.nextStep.date });
+      out.push({ jobId: j.id, kind: "next_step", text: `${j.nextStep.text} – ${who}`, short: j.nextStep.text, date: j.nextStep.date });
     }
     const fu = followUpState(j, now);
     if (fu?.due) {
       const again = fu.count ? ` (${fu.count + 1}. raz)` : "";
-      out.push({ jobId: j.id, kind: "follow_up", text: `Brak odpowiedzi od ${fu.quietDays} dni – przypomnij się${again}: ${who}` });
+      const short = `Brak odpowiedzi od ${fu.quietDays} dni – przypomnij się${again}`;
+      out.push({ jobId: j.id, kind: "follow_up", text: `${short}: ${who}`, short });
     } else if (fu?.giveUp) {
-      out.push({ jobId: j.id, kind: "follow_up", text: `Cisza mimo ${MAX_FOLLOW_UPS} przypomnień – rozważ zamknięcie: ${who}` });
+      const short = `Cisza mimo ${MAX_FOLLOW_UPS} przypomnień – rozważ zamknięcie`;
+      out.push({ jobId: j.id, kind: "follow_up", text: `${short}: ${who}`, short });
     }
     if (j.status === "interview" && !j.documents?.prep) {
-      out.push({ jobId: j.id, kind: "interview_prep", text: `Przygotuj się do rozmowy: ${who}`, date: j.nextStep?.date });
+      out.push({ jobId: j.id, kind: "interview_prep", text: `Przygotuj się do rozmowy: ${who}`, short: "Przygotuj się do rozmowy", date: j.nextStep?.date });
     }
     if ((j.status === "interesting" || j.status === "applying") && j.expiresAt) {
       const left = (Date.parse(j.expiresAt) - now) / 86_400_000;
       if (left >= 0 && left <= 3) {
-        out.push({ jobId: j.id, kind: "expiring", text: `Oferta wygasa za ${Math.ceil(left)} dni: ${who}`, date: j.expiresAt.slice(0, 10) });
+        const short = `Oferta wygasa za ${Math.ceil(left)} dni`;
+        out.push({ jobId: j.id, kind: "expiring", text: `${short}: ${who}`, short, date: j.expiresAt.slice(0, 10) });
       }
     }
     const ck = companyKey(j.company);
@@ -157,11 +162,11 @@ export function todos(jobs: Job[], cvHash: string | undefined, now = Date.now(),
       const info = companies?.[ck];
       if (!info || now - Date.parse(info.researchedAt) > RESEARCH_DAYS * 86_400_000) {
         researchAsked.add(ck);
-        out.push({ jobId: j.id, kind: "research", text: `Sprawdź firmę ${j.company} (opinie, czym się zajmuje)` });
+        out.push({ jobId: j.id, kind: "research", text: `Sprawdź firmę ${j.company} (opinie, czym się zajmuje)`, short: `Sprawdź firmę ${j.company}` });
       }
     }
     if (j.fit && cvHash && j.fit.cvHash && j.fit.cvHash !== cvHash && ACTIVE.includes(j.status)) {
-      out.push({ jobId: j.id, kind: "outdated_fit", text: `Ocena sprzed zmiany CV: ${who}` });
+      out.push({ jobId: j.id, kind: "outdated_fit", text: `Ocena sprzed zmiany CV: ${who}`, short: "Ocena sprzed zmiany CV" });
     }
   }
   return out.sort((a, b) => (a.date ?? "9").localeCompare(b.date ?? "9"));

@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Funnel, Insights, SalaryBand } from "@/lib/insights";
 import { ago } from "@/lib/format";
 import { SENIORITY_LABEL, SOURCE_LABEL, type LearningPlan, type Seniority } from "@/lib/types";
 import { api } from "./api";
+import { TopNav } from "./Nav";
 
 const k = (v: number) => `${(v / 1000).toLocaleString("pl-PL", { maximumFractionDigits: 1 })}k`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -35,17 +35,7 @@ export function Market() {
 
   return (
     <>
-      <header className="topbar">
-        <Link href="/" className="brand">
-          <img src="/icon.svg" alt="" width={24} height={24} />
-          Job<span>Deck</span>
-        </Link>
-        <span className="muted">Rynek</span>
-        <span className="spacer" />
-        <Link className="btn" href="/">
-          ← Wróć
-        </Link>
-      </header>
+      <TopNav active="insights" />
       <div className="page wide viz-root">
         <div className="viz-filters">
           <div className="seg">

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { agoTime, splitList } from "@/lib/format";
 import { citiesFor } from "@/lib/jobs";
@@ -16,6 +15,7 @@ import {
 } from "@/lib/types";
 import type { ProfileView } from "@/lib/view";
 import { api } from "./api";
+import { TopNav } from "./Nav";
 
 /** Text fields hold the comma-separated lists while the user types. */
 interface Form {
@@ -128,17 +128,7 @@ export function Settings() {
 
   return (
     <>
-      <header className="topbar">
-        <Link href="/" className="brand">
-          <img src="/icon.svg" alt="" width={24} height={24} />
-          Job<span>Deck</span>
-        </Link>
-        <span className="muted">Ustawienia</span>
-        <span className="spacer" />
-        <Link className="btn" href="/">
-          ← Wróć
-        </Link>
-      </header>
+      <TopNav active="settings" />
       <div className="page">
         <div className="panel">
           <h2>Twoje CV</h2>

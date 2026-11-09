@@ -1,4 +1,4 @@
-import type { CompanyInfo, Job, Profile, ScanRecord } from "./types";
+import type { CompanyInfo, Job, LearningPlan, Profile, ScanRecord } from "./types";
 import type { Todo } from "./jobs";
 
 /** What the board polls: jobs without their long descriptions, plus profile facts it needs. */
@@ -13,6 +13,7 @@ export interface BoardData {
   companies: Record<string, CompanyInfo>;
   /** Until when Claude went through the mailbox for replies. */
   mailCheckedAt?: string;
+  learningPlan?: LearningPlan;
   profile: Pick<Profile, "skills" | "keywords" | "onboarding" | "pay"> & { cvFileName?: string; cvHash?: string; cvText?: string };
 }
 

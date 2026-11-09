@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { b2bEquivalent, b2bNet, paySettings, PL_2026, TAX_FORM_LABEL, uopNet, ZUS_LABEL, type B2bSettings, type PayResult, type TaxForm, type ZusVariant } from "@/lib/pay";
 import type { ProfileView } from "@/lib/view";
 import { api } from "./api";
+import { TopNav } from "./Nav";
 
 const zl = (v: number) => `${Math.round(v).toLocaleString("pl-PL")} zł`;
 
@@ -67,17 +67,7 @@ export function Calculator() {
 
   return (
     <>
-      <header className="topbar">
-        <Link href="/" className="brand">
-          <img src="/icon.svg" alt="" width={24} height={24} />
-          Job<span>Deck</span>
-        </Link>
-        <span className="muted">Kalkulator B2B ↔ UoP</span>
-        <span className="spacer" />
-        <Link className="btn" href="/">
-          ← Wróć
-        </Link>
-      </header>
+      <TopNav active="calculator" />
       <div className="page wide">
         <div className="panel">
           <div className="calc-inputs">

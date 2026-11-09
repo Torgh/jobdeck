@@ -37,7 +37,7 @@ export function useBoard() {
     try {
       const d = await api<BoardData>("/api/jobs");
       setData((old) =>
-        old && old.version === d.version && JSON.stringify(old.profile) === JSON.stringify(d.profile) && old.mailCheckedAt === d.mailCheckedAt
+        old && old.version === d.version && JSON.stringify(old.profile) === JSON.stringify(d.profile) && old.mailCheckedAt === d.mailCheckedAt && old.now.slice(0, 10) === d.now.slice(0, 10)
           ? old
           : d,
       );

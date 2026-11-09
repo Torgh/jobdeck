@@ -109,7 +109,7 @@ export function Documents({ job, onChanged }: { job: Job; onChanged: () => void 
   if (!available.length) {
     return (
       <section className="box empty">
-        <h3>📄 Dokumenty</h3>
+        <h3>Dokumenty</h3>
         <p className="muted small">
           {preparing ? (
             <>
@@ -145,7 +145,7 @@ export function Documents({ job, onChanged }: { job: Job; onChanged: () => void 
   return (
     <section className="box docs">
       <div className="docs-head">
-        <h3>📄 Dokumenty</h3>
+        <h3>Dokumenty</h3>
         <div className="seg">
           {DOC_KINDS.map((k) => (
             <button key={k} className={tab === k ? "active" : ""} onClick={() => (setTab(k), setEditing(undefined))} disabled={!job.documents?.[k]}>

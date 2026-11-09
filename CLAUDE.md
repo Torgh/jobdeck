@@ -9,8 +9,10 @@ sharing one data folder (`JOBDECK_HOME`, see `lib/server/store.ts`). UI and tool
   Pracuj.pl / theprotocol.it block automated requests: their offers come from e-mail alerts via `add_jobs`. Do not add
   scrapers that work around a portal's blocking.
 - Scan + merge: `lib/server/ingest.ts`. Every write goes through `updateDb` / `updateProfile` (cross-process lock).
-- UI: `components/App.tsx` (tabs, Dziś bar, onboarding) → `Inbox.tsx` (list + detail, keyboard) and `Pipeline.tsx`
-  (kanban of active statuses); `JobDetail.tsx` is shared. Data hook with polling + undo: `components/api.ts`.
+- UI: `components/App.tsx` (views, onboarding) with the shared header `Nav.tsx` → `Today.tsx` (start screen: todos with
+  actions, best new offers, side stats), `Inbox.tsx` (list + detail, keyboard) and `Pipeline.tsx` (stage list or
+  kanban); `JobDetail.tsx` (tabs Dopasowanie / Oferta / Firma / Aplikacja) is shared. Icons: `Icon` in `ui.tsx`, no
+  emoji in the UI chrome. Data hook with polling + undo: `components/api.ts`.
 - Application history (`job.events`, `logEvents` in `lib/server/jobOps.ts`): e-mail events move cards; status
   changes made on the board are recorded too. Tailored docs (`job.documents`) are Markdown (`lib/markdown.ts`),
   rendered in `components/Markdown.tsx`, `/print` (A4 → PDF) and `lib/server/docx.ts`.

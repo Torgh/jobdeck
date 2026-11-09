@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { followUpState } from "@/lib/followup";
 import { ago } from "@/lib/format";
 import { ACTIVE, companyResearch, matchedSkills, staleness, type SkillSource } from "@/lib/jobs";
 import { formatOnHand, onHandRange, type B2bSettings } from "@/lib/pay";
@@ -23,7 +24,15 @@ import { api, type JobUpdate } from "./api";
 import { Documents, Timeline } from "./Application";
 import { FollowUp } from "./FollowUp";
 import { NegotiationBox } from "./Negotiation";
-import { Kbd, Logo, ScoreRing } from "./ui";
+import { Icon, Kbd, Logo, ScoreRing } from "./ui";
+
+type DetailTab = "fit" | "offer" | "company" | "app";
+const TABS: { id: DetailTab; label: string }[] = [
+  { id: "fit", label: "Dopasowanie" },
+  { id: "offer", label: "Oferta" },
+  { id: "company", label: "Firma" },
+  { id: "app", label: "Aplikacja" },
+];
 
 interface Props {
   job: Job;
@@ -57,6 +66,9 @@ export function JobDetail({ job, mode, skills, cvHash, companies, pay, onUpdate,
   const fit = job.fit;
   const outdated = fit?.cvHash && cvHash && fit.cvHash !== cvHash;
   const stale = staleness(job);
+  const [tab, setTab] = useState<DetailTab>(mode === "pipeline" && ["applied", "interview", "offer"].includes(job.status) ? "app" : "fit");
+  const [now] = useState(() => Date.now());
+  const followDue = !!followUpState(job, now)?.due;
   const meta = [job.workMode && WORK_MODE_LABEL[job.workMode], job.location, job.seniority && SENIORITY_LABEL[job.seniority]].filter(Boolean);
 
   return (
@@ -142,81 +154,112 @@ export function JobDetail({ job, mode, skills, cvHash, companies, pay, onUpdate,
         </div>
       )}
 
-      <section className="box fit">
-        <div className="box-head">
-          <ScoreRing fit={fit} stack={job.stackMatch} size={46} />
-          <div>
-            <h3>{fit ? VERDICT_LABEL[fit.verdict] : "Jeszcze bez oceny"}</h3>
-            <div className="muted small">{fit ? `Ocena Claude · ${ago(fit.ratedAt)}` : job.stackMatch != null ? `${job.stackMatch}% wymaganych technologii jest w Twoim CV` : "Brak listy technologii w ofercie"}</div>
-          </div>
+      {mode === "pipeline" && job.nextStep && (
+        <div className="next-banner">
+          <Icon name="calendar" size={18} />
+          <b>Następny krok: {job.nextStep.text}</b>
+          {job.nextStep.date && <span>{job.nextStep.date.slice(8, 10)}.{job.nextStep.date.slice(5, 7)}.{job.nextStep.date.slice(0, 4)}</span>}
         </div>
-        {fit ? (
-          <>
-            {outdated && <p className="warn-text">Oceniono na podstawie poprzedniego CV – poproś Claude o ponowną ocenę.</p>}
-            <p>{fit.summary}</p>
-            <ul className="pc">
-              {fit.strengths.map((s) => (
-                <li key={s} className="pro">
-                  {s}
-                </li>
-              ))}
-              {fit.gaps.map((s) => (
-                <li key={s} className="con">
-                  {s}
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <p className="muted small">
-            Napisz w Claude: <i>„oceń ofertę {job.id} w JobDeck”</i> albo <i>„oceń nowe oferty”</i>.
-          </p>
-        )}
-      </section>
-
-      {mode === "pipeline" && job.status === "applied" && (
-        <FollowUp key={`${job.id}-fu`} job={job} cvText={skills?.cv?.text} matched={job.skills.filter((s) => hits.has(s))} onChanged={onReload} />
-      )}
-      {mode === "pipeline" && (job.status === "interview" || job.status === "offer") && <NegotiationBox key={`${job.id}-nego`} job={job} pay={pay} onUpdate={onUpdate} />}
-
-      {(mode === "pipeline" || job.documents) && <Documents key={`${job.id}-docs`} job={job} onChanged={onReload} />}
-
-      <CompanyBox company={company} job={job} />
-
-      {(job.skills.length > 0 || !!job.niceSkills?.length) && (
-        <section>
-          <h4>Technologie</h4>
-          <div className="chips">
-            {job.skills.map((s) => (
-              <span key={s} className={`chip${hits.has(s) ? " hit" : ""}`}>
-                {hits.has(s) && "✓ "}
-                {s}
-              </span>
-            ))}
-            {job.niceSkills?.map((s) => (
-              <span key={s} className={`chip nice${hits.has(s) ? " hit" : ""}`} title="mile widziane">
-                {s}
-              </span>
-            ))}
-          </div>
-        </section>
       )}
 
-      {mode === "pipeline" && <NextStep key={job.id} job={job} onUpdate={onUpdate} />}
-      {mode === "pipeline" && <Timeline key={`${job.id}-tl`} job={job} onChanged={onReload} />}
-      <Notes key={job.id} job={job} onUpdate={onUpdate} />
+      <div className="detail-tabs" role="tablist" aria-label="Sekcje oferty">
+        {TABS.map((t) => (
+          <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? "active" : ""} onClick={() => setTab(t.id)}>
+            {t.label}
+            {t.id === "company" && !company && <span className="dot" title="Firma jeszcze nie sprawdzona" />}
+            {t.id === "app" && followDue && <span className="dot warn" title="Czas na follow-up" />}
+          </button>
+        ))}
+      </div>
 
-      <section>
-        <h4>
-          Opis oferty
-          <span className="muted small" style={{ fontWeight: 400, marginLeft: 8, textTransform: "none", letterSpacing: 0 }}>
-            opublikowana {job.publishedAt?.slice(0, 10) ?? "?"}
-            {job.expiresAt && ` · wygasa ${job.expiresAt.slice(0, 10)}`}
-            {job.appliedAt && ` · wysłano ${job.appliedAt}`}
-          </span>
-        </h4>
-        {desc?.error ? <p className="warn-text">{desc.error}</p> : !desc ? <p className="muted">Pobieram opis…</p> : <div className="description">{desc.text || "(brak opisu)"}</div>}
-      </section>
+      {tab === "fit" && (
+        <div className="tab-body">
+          <section className="box fit">
+            <div className="box-head">
+              <ScoreRing fit={fit} stack={job.stackMatch} size={46} />
+              <div>
+                <h3>{fit ? VERDICT_LABEL[fit.verdict] : "Jeszcze bez oceny"}</h3>
+                <div className="muted small">{fit ? `Ocena Claude · ${ago(fit.ratedAt)}` : job.stackMatch != null ? `${job.stackMatch}% wymaganych technologii jest w Twoim CV` : "Brak listy technologii w ofercie"}</div>
+              </div>
+            </div>
+            {fit ? (
+              <>
+                {outdated && <p className="warn-text">Oceniono na podstawie poprzedniego CV – poproś Claude o ponowną ocenę.</p>}
+                <p>{fit.summary}</p>
+                <ul className="pc">
+                  {fit.strengths.map((s) => (
+                    <li key={s} className="pro">
+                      {s}
+                    </li>
+                  ))}
+                  {fit.gaps.map((s) => (
+                    <li key={s} className="con">
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="muted small">
+                Napisz w Claude: <i>„oceń ofertę {job.id} w JobDeck”</i> albo <i>„oceń nowe oferty”</i>.
+              </p>
+            )}
+          </section>
+          {(job.skills.length > 0 || !!job.niceSkills?.length) && (
+            <section>
+              <h4>Technologie</h4>
+              <div className="chips">
+                {job.skills.map((s) => (
+                  <span key={s} className={`chip${hits.has(s) ? " hit" : ""}`}>
+                    {hits.has(s) && "✓ "}
+                    {s}
+                  </span>
+                ))}
+                {job.niceSkills?.map((s) => (
+                  <span key={s} className={`chip nice${hits.has(s) ? " hit" : ""}`} title="mile widziane">
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
+
+      {tab === "offer" && (
+        <div className="tab-body">
+          <section>
+            <h4>
+              Opis oferty
+              <span className="muted small" style={{ fontWeight: 400, marginLeft: 8, textTransform: "none", letterSpacing: 0 }}>
+                opublikowana {job.publishedAt?.slice(0, 10) ?? "?"}
+                {job.expiresAt && ` · wygasa ${job.expiresAt.slice(0, 10)}`}
+                {job.appliedAt && ` · wysłano ${job.appliedAt}`}
+              </span>
+            </h4>
+            {desc?.error ? <p className="warn-text">{desc.error}</p> : !desc ? <p className="muted">Pobieram opis…</p> : <div className="description">{desc.text || "(brak opisu)"}</div>}
+          </section>
+        </div>
+      )}
+
+      {tab === "company" && (
+        <div className="tab-body">
+          <CompanyBox company={company} job={job} />
+        </div>
+      )}
+
+      {tab === "app" && (
+        <div className="tab-body">
+          {mode === "pipeline" && job.status === "applied" && (
+            <FollowUp key={`${job.id}-fu`} job={job} cvText={skills?.cv?.text} matched={job.skills.filter((s) => hits.has(s))} onChanged={onReload} />
+          )}
+          {mode === "pipeline" && (job.status === "interview" || job.status === "offer") && <NegotiationBox key={`${job.id}-nego`} job={job} pay={pay} onUpdate={onUpdate} />}
+          {(mode === "pipeline" || job.documents) && <Documents key={`${job.id}-docs`} job={job} onChanged={onReload} />}
+          {mode === "pipeline" && <NextStep key={job.id} job={job} onUpdate={onUpdate} />}
+          {mode === "pipeline" && <Timeline key={`${job.id}-tl`} job={job} onChanged={onReload} />}
+          <Notes key={`${job.id}-notes`} job={job} onUpdate={onUpdate} />
+        </div>
+      )}
     </article>
   );
 }
@@ -225,7 +268,7 @@ function CompanyBox({ company, job }: { company?: CompanyInfo; job: Job }) {
   if (!company) {
     return (
       <section className="box company empty">
-        <h3>🏢 {job.company}</h3>
+        <h3>{job.company}</h3>
         <p className="muted small">
           {ACTIVE.includes(job.status)
             ? "Claude sprawdzi tę firmę (czym się zajmuje, opinie z GoWork, Glassdoor, Reddita) przy najbliższym „co nowego w JobDeck?” – albo napisz: „sprawdź firmę " + job.company + "”."
@@ -238,7 +281,7 @@ function CompanyBox({ company, job }: { company?: CompanyInfo; job: Job }) {
     <section className="box company">
       <div className="box-head">
         <div>
-          <h3>🏢 {company.name}</h3>
+          <h3>{company.name}</h3>
           <div className="muted small">{[company.kind, company.industry, company.size].filter(Boolean).join(" · ")}</div>
         </div>
         {company.website && (
