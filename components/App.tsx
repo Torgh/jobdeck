@@ -108,6 +108,9 @@ export function App() {
         <button className="btn primary" onClick={runScan} disabled={scanning || !data?.profile.keywords.length} title={data?.profile.keywords.length ? "Just Join IT + No Fluff Jobs" : "Najpierw ustaw frazy w Ustawieniach"}>
           {scanning ? "Skanuję…" : "⟳ Skanuj"}
         </button>
+        <Link className="btn ghost" href="/insights" title="Rynek: widełki, technologie, źródła">
+          📊
+        </Link>
         <Link className="btn ghost" href="/calculator" title="Kalkulator B2B ↔ UoP">
           🧮
         </Link>

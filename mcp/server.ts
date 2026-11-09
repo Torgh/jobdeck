@@ -10,6 +10,7 @@ import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { computeInsights } from "../lib/insights";
 import { compareJobs, companyResearch, seniorityFrom, todos } from "../lib/jobs";
 import { b2bEquivalent, b2bNet, formatOnHand, onHandRange, paySettings, TAX_FORM_LABEL, uopNet, ZUS_LABEL, type B2bSettings } from "../lib/pay";
 import { formatSalary, parseSalaryText } from "../lib/salary";
@@ -25,6 +26,7 @@ import {
   DOC_LABEL,
   EVENT_LABEL,
   SENIORITIES,
+  SENIORITY_LABEL,
   SOURCE_LABEL,
   SOURCES,
   STATUS_LABEL,
@@ -108,6 +110,11 @@ Rating fit (rate_jobs):
 Applying: when the user picks an offer, move it to applying, help tailor the CV / cover letter from the CV text
 and the description, then to applied once sent (it records the date). Use next_step for interviews and follow-ups
 ("Rozmowa techniczna", date). get_overview lists follow-ups (no answer after 7 days) – suggest a short follow-up message.
+
+Market (get_market_insights): when the user asks what the market says, what to learn, what to ask for or which
+portals are worth it – interpret the numbers: where their expectation sits against the medians for their level,
+which missing skills recur in good offers (and how hard each would be to show), which sources lead to interviews.
+It covers only the offers JobDeck collected (their keywords and filters), not the whole market – say so.
 
 Answer in the user's language (Polish). The board UI is in Polish.`;
 
@@ -671,6 +678,37 @@ server.registerTool(
     if (!uop_gross && !b2b_invoice) throw new Error("Podaj uop_gross albo b2b_invoice.");
     lines.push("Szacunek wg przepisów 2026, bez ulg (IP Box, dla młodych), PPK i wspólnego rozliczenia.");
     return lines.join("\n");
+  }),
+);
+
+server.registerTool(
+  "get_market_insights",
+  {
+    title: "Market insights",
+    description:
+      "What the collected offers say: salary medians and quartiles by level (B2B net, UoP gross, monthly PLN), the most requested skills and whether the CV shows them, the gaps Claude's ratings name most often, and results per source.",
+    inputSchema: { days: z.number().int().min(0).optional().describe("Window in days (default 90; 0 = everything).") },
+  },
+  tool(async ({ days }: { days?: number }) => {
+    const profile = readProfile();
+    const ins = computeInsights(Object.values(readDb().jobs), profile, { days: days ?? 90 });
+    if (!ins.total) return "Brak ofert w tym okresie.";
+    const k = (v: number) => `${Math.round(v / 100) / 10}k`;
+    const lvl = (s: string) => (s === "all" ? "wszystkie" : SENIORITY_LABEL[s as keyof typeof SENIORITY_LABEL]);
+    return [
+      `Okno: ${ins.days ? `${ins.days} dni` : "wszystko"} · ofert ${ins.total} (z widełkami ${ins.withSalary}, ocenionych ${ins.rated}${ins.avgFit != null ? `, śr. ocena ${ins.avgFit}` : ""})`,
+      profile.minMonthlyPln ? `Oczekiwanie użytkownika: min ${k(profile.minMonthlyPln)} / mies.` : "",
+      "\nWidełki (PLN / mies., środek przedziału; mediana [25.–75. percentyl], liczba ofert):",
+      ...ins.salary.map((b) => `- ${b.contract === "b2b" ? "B2B netto" : "UoP brutto"} · ${lvl(b.seniority)}: ${k(b.median)} [${k(b.p25)}–${k(b.p75)}], n=${b.n}`),
+      "\nNajczęściej wymagane (udział ofert; ✓ = jest w CV/profilu):",
+      ...ins.skills.slice(0, 20).map((s) => `- ${s.inCv ? "✓" : "✗"} ${s.name}: ${Math.round(s.share * 100)}% (${s.count})`),
+      ins.gaps.length ? `\nNajczęstsze braki w ocenach: ${ins.gaps.map((g) => `${g.text} (${g.count}×)`).join(", ")}` : "",
+      "\nŹródła (oferty / ocenione / śr. ocena / 65+ / wybrane / wysłane / rozmowy):",
+      ...ins.sources.map((s) => `- ${SOURCE_LABEL[s.source]}: ${s.offers} / ${s.rated} / ${s.avgFit ?? "–"} / ${s.good} / ${s.picked} / ${s.applied} / ${s.interviews}`),
+      "\nTylko oferty zebrane przez JobDeck (frazy i filtry użytkownika) – nie cały rynek. Wykresy: http://127.0.0.1:3100/insights",
+    ]
+      .filter(Boolean)
+      .join("\n");
   }),
 );
 

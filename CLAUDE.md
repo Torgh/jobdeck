@@ -15,5 +15,7 @@ sharing one data folder (`JOBDECK_HOME`, see `lib/server/store.ts`). UI and tool
   rendered in `components/Markdown.tsx`, `/print` (A4 → PDF) and `lib/server/docx.ts`.
 - Pay ("na rękę"): `lib/pay.ts` – yearly rules in `PL_2026` (update every January, with sources), user's B2B
   settings in `profile.pay`.
+- Market page (`/insights`): numbers from `lib/insights.ts` (pure, tested), charts in `components/Market.tsx`
+  (HTML/CSS; palette validated for light + dark, see `.viz-root` in globals.css).
 - Company research (`save_company_research`) is stored per `companyKey()` in `db.companies`.
 - `bun run check` before committing. Personal data (CV, offers) never goes into the repo.

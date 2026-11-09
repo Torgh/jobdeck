@@ -35,7 +35,7 @@ describe("JobDeck MCP server", () => {
   it("lists its tools", async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ["add_jobs", "compare_pay", "get_document", "get_job", "get_overview", "get_profile", "import_cv", "list_jobs", "log_events", "rate_jobs", "save_company_research", "save_document", "scan_portals", "update_job", "update_profile"].sort(),
+      ["add_jobs", "compare_pay", "get_document", "get_job", "get_market_insights", "get_overview", "get_profile", "import_cv", "list_jobs", "log_events", "rate_jobs", "save_company_research", "save_document", "scan_portals", "update_job", "update_profile"].sort(),
     );
   });
 
@@ -152,6 +152,14 @@ describe("JobDeck MCP server", () => {
     expect(res).toMatch(/Równoważna faktura B2B \(Liniowy 19%\)/);
     expect(res).toMatch(/Ryczałt 12% → 14\s?929 zł na rękę/);
     expect(await call("get_profile", { include_cv: false })).toMatch(/Rozliczenie B2B .*Liniowy 19%/);
+  });
+
+  it("summarises the market from the collected offers", async () => {
+    const res = await call("get_market_insights", { days: 0 });
+    expect(res).toMatch(/ofert \d+/);
+    expect(res).toMatch(/Najczęściej wymagane/);
+    expect(res).toMatch(/✓ Java/);
+    expect(res).toMatch(/nie cały rynek/);
   });
 
   it("reports errors as tool errors", async () => {

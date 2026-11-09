@@ -99,6 +99,17 @@ zdrowotną, podatek i koszty, oraz ile musi wynosić faktura, żeby dorównać d
 „≈ … na rękę”; w Skrzynce można sortować po tej kwocie. Claude ma narzędzie `compare_pay` do rozmów o stawkach.
 Przepisy na 2026 r. są w `lib/pay.ts` (`PL_2026`) – szacunek bez ulg, PPK i wspólnego rozliczenia.
 
+## Rynek
+
+📊 na górnym pasku: co mówią zebrane oferty (30 / 90 dni / wszystko) –
+- widełki według poziomu (B2B netto i UoP brutto: mediana i środkowa połowa ofert) na tle Twojego minimum,
+- najczęściej wymagane technologie, z wyróżnieniem tych, których nie ma w CV (co warto doszlifować),
+- braki, które Claude najczęściej wskazuje w ocenach,
+- źródła: ile ofert, jak pasują, ile kończy się aplikacją i rozmową.
+
+Claude ma narzędzie `get_market_insights`: „co mówi rynek w JobDeck?”. To tylko oferty zebrane przez JobDeck
+(Twoje frazy i filtry), nie cały rynek.
+
 ## Research firm
 
 Gdy oznaczysz ofertę jako Ciekawą (albo dalej), firma trafia na listę „Do ogarnięcia”. Przy najbliższym
@@ -110,7 +121,7 @@ ofercie tej firmy. Research starszy niż 60 dni jest proponowany ponownie.
 ## Narzędzia MCP
 
 `get_overview`, `scan_portals`, `add_jobs`, `list_jobs`, `get_job`, `rate_jobs`, `save_company_research`,
-`log_events`, `save_document`, `get_document`, `compare_pay`, `update_job`, `get_profile`, `update_profile`, `import_cv`.
+`log_events`, `save_document`, `get_document`, `compare_pay`, `get_market_insights`, `update_job`, `get_profile`, `update_profile`, `import_cv`.
 
 ## Rozwój
 
