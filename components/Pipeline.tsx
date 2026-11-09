@@ -4,6 +4,7 @@ import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, use
 import { useEffect, useState } from "react";
 import { ago } from "@/lib/format";
 import { compareJobs, companyResearch, type SkillSource } from "@/lib/jobs";
+import type { B2bSettings } from "@/lib/pay";
 import { formatSalary } from "@/lib/salary";
 import { CLOSED_LABEL, STATUS_LABEL, WORK_MODE_LABEL, type CompanyInfo, type Job, type Status } from "@/lib/types";
 import type { JobUpdate } from "./api";
@@ -25,13 +26,14 @@ interface Props {
   skills?: SkillSource;
   cvHash?: string;
   companies: Record<string, CompanyInfo>;
+  pay: B2bSettings;
   onUpdate: (ids: string[], patch: JobUpdate, undoLabel?: string) => void;
   onReload: () => void;
   initialId?: string;
 }
 
 /** The applications in progress as a kanban, with the open card beside it. */
-export function Pipeline({ jobs, skills, cvHash, companies, onUpdate, onReload, initialId }: Props) {
+export function Pipeline({ jobs, skills, cvHash, companies, pay, onUpdate, onReload, initialId }: Props) {
   const [openId, setOpenId] = useState<string | undefined>(initialId);
   const [showClosed, setShowClosed] = useState(false);
   const open = jobs.find((j) => j.id === openId);
@@ -83,6 +85,7 @@ export function Pipeline({ jobs, skills, cvHash, companies, onUpdate, onReload, 
             skills={skills}
             cvHash={cvHash}
             companies={companies}
+            pay={pay}
             onReload={onReload}
             onClose={() => setOpenId(undefined)}
             onUpdate={(patch, label) => onUpdate([open.id], patch, label)}

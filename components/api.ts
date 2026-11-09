@@ -37,7 +37,7 @@ export function useBoard() {
     try {
       const d = await api<BoardData>("/api/jobs");
       setData((old) =>
-        old && old.version === d.version && old.profile.cvHash === d.profile.cvHash && JSON.stringify(old.profile.onboarding) === JSON.stringify(d.profile.onboarding)
+        old && old.version === d.version && JSON.stringify(old.profile) === JSON.stringify(d.profile) && old.mailCheckedAt === d.mailCheckedAt
           ? old
           : d,
       );

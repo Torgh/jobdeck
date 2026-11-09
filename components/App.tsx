@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { agoTime } from "@/lib/format";
 import { ACTIVE } from "@/lib/jobs";
+import { paySettings } from "@/lib/pay";
 import { SOURCE_LABEL, type SourceId } from "@/lib/types";
 import type { BoardData } from "@/lib/view";
 import { api, saveOnboarding, useBoard } from "./api";
@@ -82,6 +83,8 @@ export function App() {
   const activeCount = jobs.filter((j) => ACTIVE.includes(j.status)).length;
   const skills = data ? { skills: data.profile.skills, cv: data.profile.cvText ? { text: data.profile.cvText } : undefined } : undefined;
   const companies = data?.companies ?? {};
+  const payProfile = data?.profile.pay;
+  const pay = useMemo(() => paySettings(payProfile), [payProfile]);
 
   return (
     <div className="app">
@@ -105,6 +108,9 @@ export function App() {
         <button className="btn primary" onClick={runScan} disabled={scanning || !data?.profile.keywords.length} title={data?.profile.keywords.length ? "Just Join IT + No Fluff Jobs" : "Najpierw ustaw frazy w Ustawieniach"}>
           {scanning ? "Skanuję…" : "⟳ Skanuj"}
         </button>
+        <Link className="btn ghost" href="/calculator" title="Kalkulator B2B ↔ UoP">
+          🧮
+        </Link>
         <Link className="btn ghost" href="/settings" title="Ustawienia">
           ⚙
         </Link>
@@ -138,9 +144,9 @@ export function App() {
         {!data ? (
           <div className="placeholder">Wczytuję…</div>
         ) : view === "inbox" ? (
-          <Inbox key={linked?.id} initialId={linked?.id} jobs={jobs} skills={skills} cvHash={data.profile.cvHash} companies={companies} onUpdate={update} onReload={load} onUndo={undoLast} empty={<Onboarding data={data} onScan={runScan} scanning={scanning} onSaved={load} />} />
+          <Inbox key={linked?.id} initialId={linked?.id} jobs={jobs} skills={skills} cvHash={data.profile.cvHash} companies={companies} pay={pay} onUpdate={update} onReload={load} onUndo={undoLast} empty={<Onboarding data={data} onScan={runScan} scanning={scanning} onSaved={load} />} />
         ) : (
-          <Pipeline key={linked?.id} initialId={linked?.id} jobs={jobs} skills={skills} cvHash={data.profile.cvHash} companies={companies} onUpdate={update} onReload={load} />
+          <Pipeline key={linked?.id} initialId={linked?.id} jobs={jobs} skills={skills} cvHash={data.profile.cvHash} companies={companies} pay={pay} onUpdate={update} onReload={load} />
         )}
       </main>
 

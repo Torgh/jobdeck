@@ -13,5 +13,7 @@ sharing one data folder (`JOBDECK_HOME`, see `lib/server/store.ts`). UI and tool
 - Application history (`job.events`, `logEvents` in `lib/server/jobOps.ts`): e-mail events move cards; status
   changes made on the board are recorded too. Tailored docs (`job.documents`) are Markdown (`lib/markdown.ts`),
   rendered in `components/Markdown.tsx`, `/print` (A4 → PDF) and `lib/server/docx.ts`.
+- Pay ("na rękę"): `lib/pay.ts` – yearly rules in `PL_2026` (update every January, with sources), user's B2B
+  settings in `profile.pay`.
 - Company research (`save_company_research`) is stored per `companyKey()` in `db.companies`.
 - `bun run check` before committing. Personal data (CV, offers) never goes into the repo.

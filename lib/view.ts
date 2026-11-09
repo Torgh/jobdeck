@@ -13,7 +13,7 @@ export interface BoardData {
   companies: Record<string, CompanyInfo>;
   /** Until when Claude went through the mailbox for replies. */
   mailCheckedAt?: string;
-  profile: Pick<Profile, "skills" | "keywords" | "onboarding"> & { cvFileName?: string; cvHash?: string; cvText?: string };
+  profile: Pick<Profile, "skills" | "keywords" | "onboarding" | "pay"> & { cvFileName?: string; cvHash?: string; cvText?: string };
 }
 
 /** The profile as the settings page edits it: the CV text is only previewed. */

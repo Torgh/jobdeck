@@ -3,15 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ago } from "@/lib/format";
 import { compareJobs, type SkillSource } from "@/lib/jobs";
+import { bestOnHand, formatOnHand, onHandRange, type B2bSettings } from "@/lib/pay";
 import { bestMonthly, formatSalary } from "@/lib/salary";
 import { SOURCE_LABEL, SOURCES, WORK_MODE_LABEL, type CompanyInfo, type Job, type SourceId } from "@/lib/types";
 import type { JobUpdate } from "./api";
 import { JobDetail } from "./JobDetail";
 import { Kbd, Logo, ScoreRing } from "./ui";
 
-type Sort = "best" | "newest" | "salary";
+type Sort = "best" | "newest" | "salary" | "onhand";
 
-const SORTS: Record<Sort, (a: Job, b: Job) => number> = {
+const SORTS: Record<Exclude<Sort, "onhand">, (a: Job, b: Job) => number> = {
   best: compareJobs,
   newest: (a, b) => (b.publishedAt ?? b.foundAt).localeCompare(a.publishedAt ?? a.foundAt),
   salary: (a, b) => {
@@ -28,6 +29,7 @@ interface Props {
   skills?: SkillSource;
   cvHash?: string;
   companies: Record<string, CompanyInfo>;
+  pay: B2bSettings;
   onUpdate: (ids: string[], patch: JobUpdate, undoLabel?: string) => void;
   onReload: () => void;
   onUndo: () => void;
@@ -38,7 +40,7 @@ interface Props {
 const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName));
 
 /** New offers as a list beside the open one: sort them out quickly, by mouse or keyboard. */
-export function Inbox({ jobs, skills, cvHash, companies, onUpdate, onReload, onUndo, empty, initialId }: Props) {
+export function Inbox({ jobs, skills, cvHash, companies, pay, onUpdate, onReload, onUndo, empty, initialId }: Props) {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<SourceId | "">("");
   const [rated, setRated] = useState<"all" | "rated" | "unrated">("all");
@@ -55,8 +57,8 @@ export function Inbox({ jobs, skills, cvHash, companies, onUpdate, onReload, onU
       .filter((j) => !q || `${j.title} ${j.company} ${j.skills.join(" ")} ${j.location ?? ""}`.toLowerCase().includes(q))
       .filter((j) => !source || j.links.some((l) => l.source === source))
       .filter((j) => rated === "all" || (rated === "rated" ? !!j.fit : !j.fit))
-      .sort(SORTS[sort]);
-  }, [jobs, query, source, rated, sort]);
+      .sort(sort === "onhand" ? (a, b) => (bestOnHand(b.salaries, pay) ?? -1) - (bestOnHand(a.salaries, pay) ?? -1) : SORTS[sort]);
+  }, [jobs, query, source, rated, sort, pay]);
 
   // Keep a valid selection: the chosen offer, or the one now in its place after it left the list.
   const index = Math.max(0, list.findIndex((j) => j.id === selectedId));
@@ -123,6 +125,7 @@ export function Inbox({ jobs, skills, cvHash, companies, onUpdate, onReload, onU
               <option value="best">Najlepsze</option>
               <option value="newest">Najnowsze</option>
               <option value="salary">Widełki</option>
+              <option value="onhand">Na rękę</option>
             </select>
             <select value={rated} onChange={(e) => setRated(e.target.value as typeof rated)} aria-label="Ocena">
               <option value="all">Wszystkie</option>
@@ -165,7 +168,10 @@ export function Inbox({ jobs, skills, cvHash, companies, onUpdate, onReload, onU
                   {(j.workMode || j.location) && <span className="muted">· {j.workMode === "remote" ? WORK_MODE_LABEL.remote : (j.location ?? WORK_MODE_LABEL[j.workMode!])}</span>}
                 </div>
                 <div className="row-meta">
-                  <span className="row-salary">{j.salaries[0] ? formatSalary({ ...j.salaries[0], monthlyPln: undefined }) : "—"}</span>
+                  <span className="row-salary">
+                    {j.salaries[0] ? formatSalary({ ...j.salaries[0], monthlyPln: undefined }) : "—"}
+                    <OnHandMini salary={j.salaries[0]} pay={pay} />
+                  </span>
                   <span className="muted">{ago(j.publishedAt ?? j.foundAt)}</span>
                 </div>
               </div>
@@ -187,6 +193,7 @@ export function Inbox({ jobs, skills, cvHash, companies, onUpdate, onReload, onU
             skills={skills}
             cvHash={cvHash}
             companies={companies}
+            pay={pay}
             onReload={onReload}
             onClose={() => setMobileOpen(false)}
             onUpdate={(patch, label) => (label ? decide(patch, label) : onUpdate([selected.id], patch))}
@@ -197,4 +204,9 @@ export function Inbox({ jobs, skills, cvHash, companies, onUpdate, onReload, onU
       </div>
     </div>
   );
+}
+
+function OnHandMini({ salary, pay }: { salary?: Job["salaries"][number]; pay: B2bSettings }) {
+  const r = salary && onHandRange(salary, pay);
+  return r ? <span className="muted onhand-mini"> {formatOnHand(r).replace(" na rękę", "")}</span> : null;
 }

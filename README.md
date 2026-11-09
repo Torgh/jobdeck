@@ -91,6 +91,14 @@ Napisz w Claude: „przygotuj CV i list do oferty <id>”. Claude układa Twoje 
 (kolejność, akcenty, słowa kluczowe z ogłoszenia, które CV faktycznie potwierdza – bez dopisywania niczego) i krótki,
 konkretny list. W panelu oferty: podgląd, edycja, **PDF** (widok A4 → „Zapisz jako PDF”), **DOCX** i kopiowanie tekstu.
 
+## Kalkulator B2B ↔ UoP („na rękę”)
+
+🧮 na górnym pasku: UoP brutto i faktura B2B obok siebie – ryczałt, liniowy i skala – z rozbiciem na ZUS,
+zdrowotną, podatek i koszty, oraz ile musi wynosić faktura, żeby dorównać danej pensji na UoP. Twoje ustawienia
+(forma opodatkowania, ZUS, koszty, dni bez wynagrodzenia) zapisujesz raz, a każda oferta pokazuje
+„≈ … na rękę”; w Skrzynce można sortować po tej kwocie. Claude ma narzędzie `compare_pay` do rozmów o stawkach.
+Przepisy na 2026 r. są w `lib/pay.ts` (`PL_2026`) – szacunek bez ulg, PPK i wspólnego rozliczenia.
+
 ## Research firm
 
 Gdy oznaczysz ofertę jako Ciekawą (albo dalej), firma trafia na listę „Do ogarnięcia”. Przy najbliższym
@@ -102,7 +110,7 @@ ofercie tej firmy. Research starszy niż 60 dni jest proponowany ponownie.
 ## Narzędzia MCP
 
 `get_overview`, `scan_portals`, `add_jobs`, `list_jobs`, `get_job`, `rate_jobs`, `save_company_research`,
-`log_events`, `save_document`, `get_document`, `update_job`, `get_profile`, `update_profile`, `import_cv`.
+`log_events`, `save_document`, `get_document`, `compare_pay`, `update_job`, `get_profile`, `update_profile`, `import_cv`.
 
 ## Rozwój
 

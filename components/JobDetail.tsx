@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ago } from "@/lib/format";
 import { ACTIVE, companyResearch, matchedSkills, type SkillSource } from "@/lib/jobs";
+import { formatOnHand, onHandRange, type B2bSettings } from "@/lib/pay";
 import { formatSalary } from "@/lib/salary";
 import {
   CLOSED_LABEL,
@@ -28,13 +29,14 @@ interface Props {
   skills?: SkillSource;
   cvHash?: string;
   companies: Record<string, CompanyInfo>;
+  pay: B2bSettings;
   onUpdate: (patch: JobUpdate, undoLabel?: string) => void;
   onClose?: () => void;
   /** Re-reads the board after a change made outside onUpdate (documents, history entries). */
   onReload: () => void;
 }
 
-export function JobDetail({ job, mode, skills, cvHash, companies, onUpdate, onClose, onReload }: Props) {
+export function JobDetail({ job, mode, skills, cvHash, companies, pay, onUpdate, onClose, onReload }: Props) {
   const [description, setDescription] = useState<{ id: string; text?: string; error?: string }>();
   const hits = useMemo(() => (skills ? matchedSkills([...job.skills, ...(job.niceSkills ?? [])], skills) : new Set<string>()), [job, skills]);
   const company = companyResearch(companies, job.company);
@@ -70,6 +72,20 @@ export function JobDetail({ job, mode, skills, cvHash, companies, onUpdate, onCl
             {meta.length > 0 && ` · ${meta.join(" · ")}`}
           </div>
           <div className="salary-big">{job.salaries.length ? job.salaries.map(formatSalary).join("  ·  ") : <span className="muted">Widełki nie podane</span>}</div>
+          {job.salaries.some((s) => onHandRange(s, pay)) && (
+            <div className="onhand">
+              {job.salaries
+                .map((s) => {
+                  const r = onHandRange(s, pay);
+                  return r && `${formatOnHand(r)} (${s.contract === "b2b" ? "B2B" : "UoP"})`;
+                })
+                .filter(Boolean)
+                .join("  ·  ")}
+              <a href="/calculator" className="small" title="Jak to policzono">
+                kalkulator
+              </a>
+            </div>
+          )}
         </div>
       </header>
 

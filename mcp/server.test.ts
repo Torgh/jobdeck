@@ -35,7 +35,7 @@ describe("JobDeck MCP server", () => {
   it("lists its tools", async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ["add_jobs", "get_document", "get_job", "get_overview", "get_profile", "import_cv", "list_jobs", "log_events", "rate_jobs", "save_company_research", "save_document", "scan_portals", "update_job", "update_profile"].sort(),
+      ["add_jobs", "compare_pay", "get_document", "get_job", "get_overview", "get_profile", "import_cv", "list_jobs", "log_events", "rate_jobs", "save_company_research", "save_document", "scan_portals", "update_job", "update_profile"].sort(),
     );
   });
 
@@ -143,6 +143,15 @@ describe("JobDeck MCP server", () => {
     expect(await call("save_document", { job_id: id, kind: "cv", markdown: "# Jan Kowalski\n\n## Doświadczenie\n- Allegro" })).toMatch(/\?job=/);
     expect(await call("get_document", { job_id: id, kind: "cv" })).toMatch(/# Jan Kowalski/);
     expect(await call("get_job", { job_id: id })).toMatch(/Dokumenty: CV \(/);
+  });
+
+  it("compares UoP and B2B pay with the user's settings", async () => {
+    await call("update_profile", { pay: { form: "liniowy", costs_monthly: 300 } });
+    const res = await call("compare_pay", { uop_gross: 10000, b2b_invoice: 20000 });
+    expect(res).toMatch(/UoP 10\s000 zł brutto → 7\s?147 zł na rękę/);
+    expect(res).toMatch(/Równoważna faktura B2B \(Liniowy 19%\)/);
+    expect(res).toMatch(/Ryczałt 12% → 14\s?929 zł na rękę/);
+    expect(await call("get_profile", { include_cv: false })).toMatch(/Rozliczenie B2B .*Liniowy 19%/);
   });
 
   it("reports errors as tool errors", async () => {

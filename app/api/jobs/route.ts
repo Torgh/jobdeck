@@ -21,6 +21,7 @@ export async function GET() {
         skills: profile.skills,
         keywords: profile.keywords,
         onboarding: profile.onboarding,
+        pay: profile.pay,
         cvFileName: profile.cv?.fileName,
         cvHash: profile.cv?.hash,
         // Lets the cards highlight the skills found in the CV.

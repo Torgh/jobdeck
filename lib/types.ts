@@ -215,6 +215,17 @@ export interface Profile {
   /** Free text: what the user is looking for, deal-breakers, the domain they want. */
   about?: string;
   cv?: CvInfo;
+  /** How the user would settle a B2B contract, for the "na rękę" estimates (lib/pay.ts). */
+  pay?: {
+    form?: "ryczalt" | "liniowy" | "skala";
+    ryczaltRate?: number;
+    zus?: "full" | "preferential" | "start";
+    sickness?: boolean;
+    costsMonthly?: number;
+    unpaidDays?: number;
+    /** UoP: higher employee costs for commuting from another town. */
+    commuting?: boolean;
+  };
   /** Getting-started steps the user ticks off themselves (the rest are detected). */
   onboarding?: { alerts?: boolean; gmail?: boolean; hidden?: boolean };
   updatedAt?: string;

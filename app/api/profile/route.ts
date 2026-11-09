@@ -17,7 +17,7 @@ export async function GET() {
 
 const EDITABLE = [
   "keywords", "locations", "workModes", "seniority", "contracts", "minMonthlyPln",
-  "excludeKeywords", "excludeCompanies", "sources", "skills", "about", "onboarding",
+  "excludeKeywords", "excludeCompanies", "sources", "skills", "about", "onboarding", "pay",
 ] as const;
 
 export async function PUT(req: Request) {

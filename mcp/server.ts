@@ -11,6 +11,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { compareJobs, companyResearch, seniorityFrom, todos } from "../lib/jobs";
+import { b2bEquivalent, b2bNet, formatOnHand, onHandRange, paySettings, TAX_FORM_LABEL, uopNet, ZUS_LABEL, type B2bSettings } from "../lib/pay";
 import { formatSalary, parseSalaryText } from "../lib/salary";
 import { saveCv } from "../lib/server/cv";
 import { addJobs, scan } from "../lib/server/ingest";
@@ -140,6 +141,22 @@ function oneLine(j: Job): string {
   return parts.filter(Boolean).join(" · ");
 }
 
+/** "Na rękę: ≈ 14,9–17,3k na rękę (B2B)" with the user's B2B settings, or "" when it cannot be estimated. */
+function onHand(j: Job): string {
+  const s = paySettings(readProfile().pay);
+  const parts = j.salaries
+    .map((sal) => {
+      const r = onHandRange(sal, s);
+      return r && `${formatOnHand(r)} (${sal.contract === "b2b" ? "B2B" : "UoP"})`;
+    })
+    .filter(Boolean);
+  return parts.length ? `Na rękę (szacunek 2026, ustawienia użytkownika): ${parts.join(" | ")}` : "";
+}
+
+function payText(s: B2bSettings): string {
+  return `${TAX_FORM_LABEL[s.form]}${s.form === "ryczalt" ? ` ${s.ryczaltRate}%` : ""}, ${ZUS_LABEL[s.zus]}${s.sickness ? " + chorobowe" : ""}, koszty ${s.costsMonthly} zł/mies., dni bez wynagrodzenia: ${s.unpaidDays}`;
+}
+
 function companyText(c: CompanyInfo): string {
   return [
     `## Firma: ${c.name} (research ${c.researchedAt.slice(0, 10)})`,
@@ -165,6 +182,7 @@ function jobDetails(j: Job, company?: CompanyInfo): string {
     `Miejsce: ${[j.workMode && WORK_MODE_LABEL[j.workMode], j.location].filter(Boolean).join(", ") || "?"}`,
     `Poziom: ${j.seniority ?? "?"}`,
     `Wynagrodzenie: ${j.salaries.length ? j.salaries.map(formatSalary).join(" | ") : "nie podano"}`,
+    onHand(j),
     j.skills.length ? `Wymagane: ${j.skills.join(", ")}` : "",
     j.niceSkills?.length ? `Mile widziane: ${j.niceSkills.join(", ")}` : "",
     j.stackMatch != null ? `Zgodność stacku z CV (słowa kluczowe): ${j.stackMatch}%` : "",
@@ -195,6 +213,7 @@ function profileText(p: Profile, includeCv: boolean): string {
     `Źródła: ${SOURCES.filter((s) => p.sources[s]).map((s) => SOURCE_LABEL[s]).join(", ")}`,
     `Umiejętności (profil): ${p.skills.join(", ") || "-"}`,
     `O mnie / czego szukam: ${p.about || "-"}`,
+    `Rozliczenie B2B (do kwot „na rękę”): ${payText(paySettings(p.pay))}${p.pay?.commuting ? "; UoP: dojazd z innej miejscowości" : ""}`,
     p.cv
       ? `CV: ${p.cv.fileName} (wgrane ${p.cv.uploadedAt.slice(0, 10)}, ${p.cv.text.length} znaków)${includeCv ? `\n\n## Treść CV\n${p.cv.text}` : ""}`
       : "CV: BRAK – poproś użytkownika o wgranie CV w Ustawieniach albo przez import_cv.",
@@ -271,6 +290,18 @@ server.registerTool(
       sources: z.record(z.enum(SOURCES), z.boolean()).optional().describe("Turn portals on/off."),
       skills: z.array(z.string()).optional(),
       about: z.string().optional(),
+      pay: z
+        .object({
+          form: z.enum(["ryczalt", "liniowy", "skala"]).optional(),
+          ryczalt_rate: z.number().optional().describe("12 for programming, 8.5 for some IT services."),
+          zus: z.enum(["full", "preferential", "start"]).optional(),
+          sickness: z.boolean().optional(),
+          costs_monthly: z.number().optional(),
+          unpaid_days: z.number().optional().describe("Days a year without pay on B2B (holidays, sick days)."),
+          commuting: z.boolean().optional().describe("UoP: commuting from another town (higher employee costs)."),
+        })
+        .optional()
+        .describe("How the user would settle B2B – used for the 'na rękę' estimates."),
     },
   },
   tool(async (a: {
@@ -285,6 +316,7 @@ server.registerTool(
     sources?: Partial<Profile["sources"]>;
     skills?: string[];
     about?: string;
+    pay?: { form?: B2bSettings["form"]; ryczalt_rate?: number; zus?: B2bSettings["zus"]; sickness?: boolean; costs_monthly?: number; unpaid_days?: number; commuting?: boolean };
   }) => {
     const p = await updateProfile((p) => {
       if (a.keywords) p.keywords = a.keywords;
@@ -298,6 +330,19 @@ server.registerTool(
       if (a.sources) p.sources = { ...p.sources, ...a.sources };
       if (a.skills) p.skills = a.skills;
       if (a.about !== undefined) p.about = a.about;
+      if (a.pay) {
+        const q = a.pay;
+        p.pay = {
+          ...p.pay,
+          ...(q.form && { form: q.form }),
+          ...(q.ryczalt_rate != null && { ryczaltRate: q.ryczalt_rate }),
+          ...(q.zus && { zus: q.zus }),
+          ...(q.sickness != null && { sickness: q.sickness }),
+          ...(q.costs_monthly != null && { costsMonthly: q.costs_monthly }),
+          ...(q.unpaid_days != null && { unpaidDays: q.unpaid_days }),
+          ...(q.commuting != null && { commuting: q.commuting }),
+        };
+      }
     });
     return `Zapisano.\n${profileText(p, false)}`;
   }),
@@ -593,6 +638,39 @@ server.registerTool(
     if (!job) throw new Error(`Nie ma oferty o id "${job_id}".`);
     const doc = job.documents?.[kind];
     return doc ? `${DOC_LABEL[kind]} (zmieniony ${doc.updatedAt.slice(0, 16).replace("T", " ")}):\n\n${doc.markdown}` : `Brak dokumentu ${DOC_LABEL[kind]} dla tej oferty.`;
+  }),
+);
+
+server.registerTool(
+  "compare_pay",
+  {
+    title: "Compare pay (UoP vs B2B)",
+    description:
+      "What is left per month ('na rękę', 2026 rules) from a UoP gross salary and/or a B2B invoice, for every B2B tax form with the user's settings, plus the invoice equal to the UoP salary. Use it for salary questions and negotiations; mention it is an estimate without reliefs.",
+    inputSchema: {
+      uop_gross: z.number().optional().describe("Monthly gross on an employment contract."),
+      b2b_invoice: z.number().optional().describe("Monthly invoice net of VAT (hourly rate × 168)."),
+    },
+  },
+  tool(async ({ uop_gross, b2b_invoice }: { uop_gross?: number; b2b_invoice?: number }) => {
+    const profile = readProfile();
+    const s = paySettings(profile.pay);
+    const zl = (v: number) => `${Math.round(v).toLocaleString("pl-PL")} zł`;
+    const lines: string[] = [`Ustawienia B2B: ${payText(s)}`];
+    if (uop_gross) {
+      const u = uopNet(uop_gross, { commuting: profile.pay?.commuting });
+      lines.push(`UoP ${zl(uop_gross)} brutto → ${zl(u.net)} na rękę (${u.parts.map((x) => `${x.label} ${zl(x.amount)}`).join(", ")})`);
+      lines.push(`Równoważna faktura B2B (${TAX_FORM_LABEL[s.form]}): ${zl(b2bEquivalent(uop_gross, s))} netto / mies.`);
+    }
+    if (b2b_invoice) {
+      for (const form of ["ryczalt", "liniowy", "skala"] as const) {
+        const r = b2bNet(b2b_invoice, { ...s, form });
+        lines.push(`B2B ${zl(b2b_invoice)} · ${TAX_FORM_LABEL[form]}${form === "ryczalt" ? ` ${s.ryczaltRate}%` : ""} → ${zl(r.net)} na rękę (${r.parts.filter((x) => x.amount > 0).map((x) => `${x.label} ${zl(x.amount)}`).join(", ")})`);
+      }
+    }
+    if (!uop_gross && !b2b_invoice) throw new Error("Podaj uop_gross albo b2b_invoice.");
+    lines.push("Szacunek wg przepisów 2026, bez ulg (IP Box, dla młodych), PPK i wspólnego rozliczenia.");
+    return lines.join("\n");
   }),
 );
 
