@@ -69,6 +69,10 @@ describe("stackMatch", () => {
 describe("todos", () => {
   const now = Date.parse("2026-11-10T12:00:00Z");
 
+  const researched = (at: string) => ({
+    x: { name: "X", summary: "", ratings: [], pros: [], cons: [], flags: [], sources: [], researchedAt: at },
+  });
+
   it("lists follow-ups, due steps and expiring offers", () => {
     const list = todos(
       [
@@ -79,11 +83,18 @@ describe("todos", () => {
       ],
       undefined,
       now,
+      researched("2026-11-05T00:00:00Z"),
     );
     expect(list.map((t) => [t.jobId, t.kind])).toEqual([
       ["2", "next_step"],
       ["3", "expiring"],
       ["1", "follow_up"],
     ]);
+  });
+
+  it("asks once per company for research of active offers, and again when it is old", () => {
+    const jobs = [job({ id: "1", status: "interesting" }), job({ id: "2", status: "applied", statusChangedAt: "2026-11-09T00:00:00Z" }), job({ id: "3" })];
+    expect(todos(jobs, undefined, now).filter((t) => t.kind === "research").map((t) => t.jobId)).toEqual(["1"]);
+    expect(todos(jobs, undefined, now, researched("2026-08-01T00:00:00Z")).some((t) => t.kind === "research")).toBe(true);
   });
 });

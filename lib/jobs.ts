@@ -1,5 +1,5 @@
 import { bestMonthly } from "./salary";
-import type { Job, JobInput, Profile, Seniority, Status, WorkMode } from "./types";
+import type { CompanyInfo, Job, JobInput, Profile, Seniority, Status, WorkMode } from "./types";
 
 /** Lowercase, no Polish diacritics, no punctuation. */
 export function fold(s: string): string {
@@ -98,16 +98,27 @@ export function isStale(job: Job, days: number, now = Date.now()): boolean {
 
 export interface Todo {
   jobId: string;
-  kind: "follow_up" | "next_step" | "expiring" | "outdated_fit";
+  kind: "follow_up" | "next_step" | "expiring" | "outdated_fit" | "research";
   text: string;
   date?: string;
 }
 
-const ACTIVE: Status[] = ["interesting", "applying", "applied", "interview", "offer"];
+export const ACTIVE: Status[] = ["interesting", "applying", "applied", "interview", "offer"];
 
-/** The "Do ogarnięcia" list: follow-ups, due next steps, expiring offers the user cares about. */
-export function todos(jobs: Job[], cvHash: string | undefined, now = Date.now()): Todo[] {
+/** Research older than this is offered again. */
+const RESEARCH_DAYS = 60;
+
+export function companyResearch(companies: Record<string, CompanyInfo> | undefined, company: string): CompanyInfo | undefined {
+  return companies?.[companyKey(company)];
+}
+
+/**
+ * The "Do ogarnięcia" list: follow-ups, due next steps, expiring offers the user cares about, and
+ * employers of active offers that Claude has not researched yet.
+ */
+export function todos(jobs: Job[], cvHash: string | undefined, now = Date.now(), companies?: Record<string, CompanyInfo>): Todo[] {
   const out: Todo[] = [];
+  const researchAsked = new Set<string>();
   const today = new Date(now).toISOString().slice(0, 10);
   for (const j of jobs) {
     const who = `${j.title} @ ${j.company}`;
@@ -122,6 +133,14 @@ export function todos(jobs: Job[], cvHash: string | undefined, now = Date.now())
       const left = (Date.parse(j.expiresAt) - now) / 86_400_000;
       if (left >= 0 && left <= 3) {
         out.push({ jobId: j.id, kind: "expiring", text: `Oferta wygasa za ${Math.ceil(left)} dni: ${who}`, date: j.expiresAt.slice(0, 10) });
+      }
+    }
+    const ck = companyKey(j.company);
+    if (ACTIVE.includes(j.status) && !researchAsked.has(ck)) {
+      const info = companies?.[ck];
+      if (!info || now - Date.parse(info.researchedAt) > RESEARCH_DAYS * 86_400_000) {
+        researchAsked.add(ck);
+        out.push({ jobId: j.id, kind: "research", text: `Sprawdź firmę ${j.company} (opinie, czym się zajmuje)` });
       }
     }
     if (j.fit && cvHash && j.fit.cvHash && j.fit.cvHash !== cvHash && ACTIVE.includes(j.status)) {

@@ -11,12 +11,15 @@ export async function GET() {
     const jobs = Object.values(db.jobs).map(({ description: _d, ...j }) => j);
     return {
       version: db.version,
+      now: new Date().toISOString(),
       jobs,
       lastScan: db.scans.at(-1),
-      todos: todos(jobs, profile.cv?.hash),
+      todos: todos(jobs, profile.cv?.hash, Date.now(), db.companies),
+      companies: db.companies ?? {},
       profile: {
         skills: profile.skills,
         keywords: profile.keywords,
+        onboarding: profile.onboarding,
         cvFileName: profile.cv?.fileName,
         cvHash: profile.cv?.hash,
         // Lets the cards highlight the skills found in the CV.

@@ -4,9 +4,16 @@ Osobisty tracker szukania pracy w IT. Oferty z polskich portali i LinkedIna traf
 a Claude (przez serwer MCP, na Twojej subskrypcji, bez klucza API) ocenia, jak bardzo pasują do Twojego CV.
 Działa na tej samej zasadzie co TripDeck: Claude pracuje przez narzędzia, a Ty na żywo widzisz zmiany w aplikacji.
 
-```
-Nowe → Ciekawe → Aplikuję → Wysłane → Rozmowy → Oferta   (+ Zamknięte)
-```
+Dwa widoki:
+
+- **Skrzynka** – nowe oferty jako lista (najlepiej ocenione na górze) z otwartą ofertą obok. Szybkie decyzje
+  myszką albo klawiaturą: `J`/`K` następna/poprzednia, `S` ciekawe, `X` nie dla mnie, `F` gwiazdka, `O` otwórz na
+  portalu, `Z` cofnij, `/` szukaj.
+- **Pipeline** – kanban tylko dla tego, co w toku: Ciekawe → Aplikuję → Wysłane → Rozmowy → Oferta (+ Zamknięte).
+
+Pasek **Dziś** pokazuje nowe oferty, oceny do zrobienia, wysłane aplikacje i rozmowy, a **Do ogarnięcia** –
+follow-upy, terminy, wygasające oferty i firmy do sprawdzenia. Link `http://127.0.0.1:3100/?job=<id>` otwiera
+konkretną ofertę (Claude podaje takie linki).
 
 ## Skąd biorą się oferty
 
@@ -70,10 +77,18 @@ Claude porównuje treść CV z pełnym opisem oferty i przyznaje punkty (0–100
 
 80+ świetne · 65–79 dobre · 45–64 częściowe · poniżej 45 słabe. Po wgraniu nowego CV stare oceny są oznaczane jako nieaktualne.
 
+## Research firm
+
+Gdy oznaczysz ofertę jako Ciekawą (albo dalej), firma trafia na listę „Do ogarnięcia”. Przy najbliższym
+„co nowego?” Claude sprawdza ją w sieci: czym się zajmuje (produkt / software house / body leasing / agencja),
+wielkość, ostatnie newsy (zwolnienia, finansowanie) i opinie pracowników (GoWork.pl, Glassdoor, Reddit,
+4programmers). Wynik – oceny z linkami, plusy, minusy i rzeczy do dopytania na rozmowie – widać przy każdej
+ofercie tej firmy. Research starszy niż 60 dni jest proponowany ponownie.
+
 ## Narzędzia MCP
 
-`get_overview`, `scan_portals`, `add_jobs`, `list_jobs`, `get_job`, `rate_jobs`, `update_job`, `get_profile`,
-`update_profile`, `import_cv`.
+`get_overview`, `scan_portals`, `add_jobs`, `list_jobs`, `get_job`, `rate_jobs`, `save_company_research`,
+`update_job`, `get_profile`, `update_profile`, `import_cv`.
 
 ## Rozwój
 

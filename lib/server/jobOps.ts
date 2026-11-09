@@ -1,4 +1,5 @@
-import type { ClosedReason, Fit, Job, Status, Verdict } from "../types";
+import { companyKey } from "../jobs";
+import type { ClosedReason, CompanyInfo, Fit, Job, Status, Verdict } from "../types";
 import { jobDescription } from "./sources";
 import { readDb, readProfile, updateDb } from "./store";
 
@@ -98,4 +99,15 @@ export function rateJobs(ratings: RatingInput[]): Promise<Job[]> {
       return job;
     }),
   );
+}
+
+/** Stores what Claude found out about an employer; every offer from that company shows it. */
+export function saveCompany(info: Omit<CompanyInfo, "researchedAt">): Promise<CompanyInfo> {
+  const key = companyKey(info.name);
+  if (!key) throw new Error("Podaj nazwę firmy.");
+  return updateDb((db) => {
+    const saved: CompanyInfo = { ...info, researchedAt: new Date().toISOString() };
+    db.companies = { ...db.companies, [key]: saved };
+    return saved;
+  });
 }

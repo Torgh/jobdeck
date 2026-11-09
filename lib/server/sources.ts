@@ -24,6 +24,7 @@ interface JjitOffer {
   slug: string;
   title: string;
   companyName: string;
+  companyLogoThumbUrl?: string;
   city?: string;
   workplaceType?: string;
   experienceLevel?: string;
@@ -70,6 +71,7 @@ export function mapJustJoin(o: JjitOffer): JobInput {
     url: `https://justjoin.it/job-offer/${o.slug}`,
     externalId: o.slug,
     source: "justjoin",
+    logo: o.companyLogoThumbUrl || undefined,
     location: o.city,
     workMode: (o.workplaceType as WorkMode) === "remote" ? "remote" : workModeFrom(o.workplaceType),
     seniority: o.experienceLevel === "c_level" ? "lead" : seniorityFrom(o.experienceLevel),
@@ -116,10 +118,16 @@ interface NfjPosting {
   fullyRemote?: boolean;
   location?: { places?: { city?: string }[]; fullyRemote?: boolean; type?: string };
   salary?: { from?: number; to?: number; type?: string; currency?: string; period?: string };
+  logo?: { jobs_listing?: string; original?: string };
   tiles?: { values?: { value: string; type: string }[] };
 }
 
 const NFJ_CONTRACT: Record<string, Contract> = { b2b: "b2b", permanent: "uop", zlecenie: "uz" };
+
+const nfjLogo = (logo: NfjPosting["logo"]) => {
+  const path = logo?.jobs_listing || logo?.original;
+  return path ? `https://static.nofluffjobs.com/${path}` : undefined;
+};
 
 export function mapNoFluff(p: NfjPosting): JobInput {
   const remote = p.fullyRemote || p.location?.fullyRemote;
@@ -131,6 +139,7 @@ export function mapNoFluff(p: NfjPosting): JobInput {
     url: `https://nofluffjobs.com/pl/job/${p.url}`,
     externalId: p.url,
     source: "nofluff",
+    logo: nfjLogo(p.logo),
     location: p.location?.places?.find((pl) => pl.city && !/^remote$/i.test(pl.city))?.city,
     workMode: remote ? "remote" : workModeFrom(p.location?.type),
     seniority: seniorityFrom(p.seniority?.at(-1)),
@@ -198,6 +207,7 @@ export function parseLinkedInCards(html: string): JobInput[] {
       const location = attr(card, /job-search-card__location[^>]*>([\s\S]*?)<\/span>/);
       const salaryText = attr(card, /job-search-card__salary-info[^>]*>([\s\S]*?)<\/span>/);
       const date = card.match(/<time[^>]*datetime="([\d-]+)"/)?.[1];
+      const logo = card.match(/data-delayed-url="(https:\/\/media\.licdn\.com[^"]*company-logo[^"]*)"/)?.[1];
       const salary = salaryText ? parseSalaryText(salaryText) : undefined;
       return {
         title,
@@ -205,6 +215,7 @@ export function parseLinkedInCards(html: string): JobInput[] {
         url: `https://www.linkedin.com/jobs/view/${id}`,
         externalId: id,
         source: "linkedin",
+        logo: logo ? decodeEntities(logo) : undefined,
         location,
         workMode: workModeFrom(`${title} ${location ?? ""}`),
         seniority: seniorityFrom(title),

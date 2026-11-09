@@ -8,4 +8,7 @@ sharing one data folder (`JOBDECK_HOME`, see `lib/server/store.ts`). UI and tool
   Pracuj.pl / theprotocol.it block automated requests: their offers come from e-mail alerts via `add_jobs`. Do not add
   scrapers that work around a portal's blocking.
 - Scan + merge: `lib/server/ingest.ts`. Every write goes through `updateDb` / `updateProfile` (cross-process lock).
+- UI: `components/App.tsx` (tabs, Dziś bar, onboarding) → `Inbox.tsx` (list + detail, keyboard) and `Pipeline.tsx`
+  (kanban of active statuses); `JobDetail.tsx` is shared. Data hook with polling + undo: `components/api.ts`.
+- Company research (`save_company_research`) is stored per `companyKey()` in `db.companies`.
 - `bun run check` before committing. Personal data (CV, offers) never goes into the repo.

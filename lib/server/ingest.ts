@@ -46,12 +46,13 @@ export function ingest(db: Db, inputs: JobInput[], profile: Profile, rates: Reco
     const existing = byUrl.get(input.url) ?? byKey.get(key);
     const salaries = (input.salaries ?? []).map((s) => normalizeSalary(s, rates));
     if (existing) {
-      if (!existing.links.some((l) => l.url === input.url)) existing.links.push({ source: input.source, url: input.url });
+      if (!existing.links.some((l) => l.url === input.url || l.source === input.source)) existing.links.push({ source: input.source, url: input.url });
       if (!existing.salaries.length && salaries.length) existing.salaries = salaries;
       if (!existing.skills.length && input.skills?.length) {
         existing.skills = input.skills;
         existing.stackMatch = stackMatch(existing.skills, profile);
       }
+      existing.logo ??= input.logo;
       existing.location ??= input.location;
       existing.workMode ??= input.workMode;
       existing.seniority ??= input.seniority;
@@ -76,6 +77,7 @@ export function ingest(db: Db, inputs: JobInput[], profile: Profile, rates: Reco
       source: input.source,
       links: [{ source: input.source, url: input.url }],
       externalId: input.externalId,
+      logo: input.logo,
       location: input.location,
       workMode: input.workMode,
       seniority: input.seniority,

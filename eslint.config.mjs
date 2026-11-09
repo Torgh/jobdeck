@@ -11,6 +11,8 @@ export default defineConfig([
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", ignoreRestSiblings: true },
       ],
+      // Company logos come from the portals' CDNs; next/image optimisation adds nothing for 32 px icons.
+      "@next/next/no-img-element": "off",
     },
   },
   globalIgnores([".next/**", "out/**", "coverage/**", "next-env.d.ts", "public/**"]),

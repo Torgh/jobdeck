@@ -35,7 +35,7 @@ describe("JobDeck MCP server", () => {
   it("lists its tools", async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ["add_jobs", "get_job", "get_overview", "get_profile", "import_cv", "list_jobs", "rate_jobs", "scan_portals", "update_job", "update_profile"].sort(),
+      ["add_jobs", "get_job", "get_overview", "get_profile", "import_cv", "list_jobs", "rate_jobs", "save_company_research", "scan_portals", "update_job", "update_profile"].sort(),
     );
   });
 
@@ -83,6 +83,22 @@ describe("JobDeck MCP server", () => {
     expect(job).toMatch(/status: Wysłane/);
     expect(job).toMatch(/Następny krok: Follow-up \(2026-11-20\)/);
     expect(job).toMatch(/Ocena: 78\/100 – Dobre dopasowanie/);
+
+    // An active offer whose employer is not researched yet shows up in the overview…
+    expect(await call("get_overview")).toMatch(/Sprawdź firmę Acme/);
+    await call("save_company_research", {
+      name: "ACME Sp. z o.o.",
+      summary: "Produkt SaaS dla logistyki.",
+      kind: "produkt",
+      ratings: [{ site: "GoWork.pl", score: 3.9, out_of: 5, reviews: 120, url: "https://gowork.pl/acme" }],
+      pros: ["stabilne zatrudnienie"],
+      cons: ["wolne podwyżki"],
+      flags: ["zapytać o on-call"],
+      sources: [{ title: "GoWork", url: "https://gowork.pl/acme" }],
+    });
+    // …and once researched, every offer from that company carries it.
+    expect(await call("get_job", { job_id: id })).toMatch(/## Firma: ACME Sp\. z o\.o\.[\s\S]*GoWork\.pl 3\.9\/5 \(120 opinii\)/);
+    expect(await call("get_overview")).not.toMatch(/Sprawdź firmę/);
   });
 
   it("reports errors as tool errors", async () => {

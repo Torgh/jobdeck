@@ -1,5 +1,5 @@
-import { Board } from "@/components/Board";
+import { App } from "@/components/App";
 
 export default function Home() {
-  return <Board />;
+  return <App />;
 }

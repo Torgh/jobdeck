@@ -108,6 +108,8 @@ export interface Job {
   links: JobLink[];
   /** Portal's own id, used to fetch the full description. */
   externalId?: string;
+  /** Company logo URL from the portal. */
+  logo?: string;
   location?: string;
   workMode?: WorkMode;
   seniority?: Seniority;
@@ -163,6 +165,8 @@ export interface Profile {
   /** Free text: what the user is looking for, deal-breakers, the domain they want. */
   about?: string;
   cv?: CvInfo;
+  /** Getting-started steps the user ticks off themselves (the rest are detected). */
+  onboarding?: { alerts?: boolean; gmail?: boolean; hidden?: boolean };
   updatedAt?: string;
 }
 
@@ -180,10 +184,40 @@ export interface ScanRecord {
   added: number;
 }
 
+/** A rating of the employer on a review site (GoWork.pl, Glassdoor, Indeed…). */
+export interface CompanyRating {
+  site: string;
+  score: number;
+  /** Top of the scale, e.g. 5. */
+  outOf: number;
+  reviews?: number;
+  url?: string;
+}
+
+/** What Claude found out about an employer: shown with every offer from that company. */
+export interface CompanyInfo {
+  name: string;
+  summary: string;
+  industry?: string;
+  size?: string;
+  website?: string;
+  /** "produkt", "software house", "body leasing / outsourcing", "agencja rekrutacyjna"… */
+  kind?: string;
+  ratings: CompanyRating[];
+  pros: string[];
+  cons: string[];
+  /** Things to check or ask about in the interview (layoffs, frequent re-posting, unclear client). */
+  flags: string[];
+  sources: { title: string; url: string }[];
+  researchedAt: string;
+}
+
 export interface Db {
   version: number;
   jobs: Record<string, Job>;
   scans: ScanRecord[];
+  /** By companyKey(). */
+  companies?: Record<string, CompanyInfo>;
 }
 
 export const DEFAULT_PROFILE: Profile = {
@@ -205,6 +239,7 @@ export interface JobInput {
   url: string;
   source: SourceId;
   externalId?: string;
+  logo?: string;
   location?: string;
   workMode?: WorkMode;
   seniority?: Seniority;

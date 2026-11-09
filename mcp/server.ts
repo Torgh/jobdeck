@@ -10,11 +10,11 @@ import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { compareJobs, seniorityFrom, todos } from "../lib/jobs";
+import { compareJobs, companyResearch, seniorityFrom, todos } from "../lib/jobs";
 import { formatSalary, parseSalaryText } from "../lib/salary";
 import { saveCv } from "../lib/server/cv";
 import { addJobs, scan } from "../lib/server/ingest";
-import { jobWithDescription, patchJobs, rateJobs } from "../lib/server/jobOps";
+import { jobWithDescription, patchJobs, rateJobs, saveCompany } from "../lib/server/jobOps";
 import { readDb, readProfile, updateProfile } from "../lib/server/store";
 import {
   CLOSED_LABEL,
@@ -27,6 +27,7 @@ import {
   STATUSES,
   VERDICT_LABEL,
   WORK_MODE_LABEL,
+  type CompanyInfo,
   type Job,
   type Profile,
 } from "../lib/types";
@@ -47,6 +48,18 @@ Routine ("co nowego?", run every second day or so):
 4. Rate the new offers against the CV (below), then give the user a short ranked summary: the best ones first with
    one line each on why, and what you set aside. Move clear mismatches to closed (not_for_me) only if the user agrees,
    or when they asked you to triage.
+5. Research the employers get_overview lists under "Sprawdź firmę" (offers the user marked as interesting or further).
+
+Company research (save_company_research), with your web search / fetch tools:
+- What the company does, product company vs software house vs body leasing / outsourcing vs recruitment agency
+  (then who the end client is, if the offer says), size and headcount in Poland, recent news (layoffs, funding,
+  acquisitions, restructuring) from the last 12–18 months.
+- Opinions: GoWork.pl (most Polish employee reviews), Glassdoor, Indeed, Reddit (r/Polska, r/cscareerquestionsEU),
+  4programmers.net, Wykop. Ratings only as published on the site, with the number of reviews and the link;
+  never estimate a rating. Summarise recurring themes into pros / cons (short Polish phrases), not single reviews.
+- flags: what to check or ask in the interview (e.g. "częste zwolnienia w 2026", "oferta wystawiana od miesięcy",
+  "klient końcowy nieznany"). sources: the pages you used. If you found little, say so in the summary.
+- One research per company; it is shown on every offer from that company.
 
 Rating fit (rate_jobs):
 - Read the CV and preferences once with get_profile, then each offer's full description with get_job.
@@ -68,7 +81,7 @@ and the description, then to applied once sent (it records the date). Use next_s
 
 Answer in the user's language (Polish). The board UI is in Polish.`;
 
-const server = new McpServer({ name: "jobdeck", title: "JobDeck", version: "0.1.0" }, { instructions: INSTRUCTIONS });
+const server = new McpServer({ name: "jobdeck", title: "JobDeck", version: "0.2.0" }, { instructions: INSTRUCTIONS });
 
 type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
 
@@ -98,10 +111,27 @@ function oneLine(j: Job): string {
   return parts.filter(Boolean).join(" · ");
 }
 
-function jobDetails(j: Job): string {
+function companyText(c: CompanyInfo): string {
+  return [
+    `## Firma: ${c.name} (research ${c.researchedAt.slice(0, 10)})`,
+    c.summary,
+    [c.kind, c.industry, c.size, c.website].filter(Boolean).join(" · "),
+    c.ratings.length
+      ? `Oceny: ${c.ratings.map((r) => `${r.site} ${r.score}/${r.outOf}${r.reviews ? ` (${r.reviews} opinii)` : ""}`).join(", ")}`
+      : "",
+    c.pros.length ? `+ ${c.pros.join("; ")}` : "",
+    c.cons.length ? `− ${c.cons.join("; ")}` : "",
+    c.flags.length ? `⚑ ${c.flags.join("; ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function jobDetails(j: Job, company?: CompanyInfo): string {
   const lines = [
     `# ${j.title} @ ${j.company}`,
     `id: ${j.id} · status: ${STATUS_LABEL[j.status]}${j.closedReason ? ` (${CLOSED_LABEL[j.closedReason]})` : ""}${j.starred ? " · ⭐" : ""}`,
+    `Na tablicy: http://127.0.0.1:3100/?job=${j.id}`,
     `Link: ${j.url}${j.links.length > 1 ? ` (też: ${j.links.slice(1).map((l) => l.url).join(", ")})` : ""}`,
     `Miejsce: ${[j.workMode && WORK_MODE_LABEL[j.workMode], j.location].filter(Boolean).join(", ") || "?"}`,
     `Poziom: ${j.seniority ?? "?"}`,
@@ -116,6 +146,7 @@ function jobDetails(j: Job): string {
     j.notes ? `Notatki: ${j.notes}` : "",
     j.nextStep ? `Następny krok: ${j.nextStep.text}${j.nextStep.date ? ` (${j.nextStep.date})` : ""}` : "",
     j.appliedAt ? `Wysłano: ${j.appliedAt}` : "",
+    company ? `\n${companyText(company)}` : "Firma: brak researchu (save_company_research).",
     "",
     "## Opis",
     j.description ?? j.summary ?? "(brak)",
@@ -153,7 +184,7 @@ server.registerTool(
     const per = STATUSES.map((s) => `${STATUS_LABEL[s]}: ${jobs.filter((j) => j.status === s).length}`).join(" · ");
     const unrated = jobs.filter((j) => j.status === "new" && !j.fit);
     const last = db.scans.at(-1);
-    const todo = todos(jobs, profile.cv?.hash);
+    const todo = todos(jobs, profile.cv?.hash, Date.now(), db.companies);
     const missing = [
       !profile.cv && "brak CV",
       !profile.keywords.length && "brak fraz wyszukiwania",
@@ -372,7 +403,10 @@ server.registerTool(
     description: "One offer with its full description (fetched from the portal the first time), salary, skills, rating, notes.",
     inputSchema: { job_id: z.string() },
   },
-  tool(async ({ job_id }: { job_id: string }) => jobDetails(await jobWithDescription(job_id))),
+  tool(async ({ job_id }: { job_id: string }) => {
+    const job = await jobWithDescription(job_id);
+    return jobDetails(job, companyResearch(readDb().companies, job.company));
+  }),
 );
 
 server.registerTool(
@@ -397,6 +431,66 @@ server.registerTool(
   tool(async ({ ratings }: { ratings: Parameters<typeof rateJobs>[0] }) => {
     const jobs = await rateJobs(ratings);
     return `Zapisano ${jobs.length} ocen:\n${jobs.map((j) => `- ${j.fit!.score} ${j.title} @ ${j.company}`).join("\n")}`;
+  }),
+);
+
+server.registerTool(
+  "save_company_research",
+  {
+    title: "Save company research",
+    description:
+      "Saves what you found out about an employer (follow the company research rules in the server instructions). Replaces earlier research of that company; the board shows it on every offer from it.",
+    inputSchema: {
+      name: z.string().describe("Company name as on the offer."),
+      summary: z.string().describe("2–4 sentences in Polish: what they do, for whom, how it looks as an employer."),
+      kind: z.string().optional().describe('e.g. "produkt", "software house", "body leasing / outsourcing", "agencja rekrutacyjna".'),
+      industry: z.string().optional(),
+      size: z.string().optional().describe('e.g. "ok. 800 osób w Polsce".'),
+      website: z.string().optional(),
+      ratings: z
+        .array(
+          z.object({
+            site: z.string(),
+            score: z.number(),
+            out_of: z.number().describe("Top of the scale, e.g. 5."),
+            reviews: z.number().int().optional(),
+            url: z.string().optional(),
+          }),
+        )
+        .optional(),
+      pros: z.array(z.string()).optional(),
+      cons: z.array(z.string()).optional(),
+      flags: z.array(z.string()).optional(),
+      sources: z.array(z.object({ title: z.string(), url: z.string() })).optional(),
+    },
+  },
+  tool(async (a: {
+    name: string;
+    summary: string;
+    kind?: string;
+    industry?: string;
+    size?: string;
+    website?: string;
+    ratings?: { site: string; score: number; out_of: number; reviews?: number; url?: string }[];
+    pros?: string[];
+    cons?: string[];
+    flags?: string[];
+    sources?: { title: string; url: string }[];
+  }) => {
+    const c = await saveCompany({
+      name: a.name,
+      summary: a.summary,
+      kind: a.kind,
+      industry: a.industry,
+      size: a.size,
+      website: a.website,
+      ratings: (a.ratings ?? []).map((r) => ({ site: r.site, score: r.score, outOf: r.out_of, reviews: r.reviews, url: r.url })),
+      pros: a.pros ?? [],
+      cons: a.cons ?? [],
+      flags: a.flags ?? [],
+      sources: a.sources ?? [],
+    });
+    return `Zapisano research firmy.\n${companyText(c)}`;
   }),
 );
 

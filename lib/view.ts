@@ -1,13 +1,17 @@
-import type { Job, Profile, ScanRecord } from "./types";
+import type { CompanyInfo, Job, Profile, ScanRecord } from "./types";
 import type { Todo } from "./jobs";
 
 /** What the board polls: jobs without their long descriptions, plus profile facts it needs. */
 export interface BoardData {
   version: number;
+  /** Server time of this snapshot, so the UI renders without reading the clock. */
+  now: string;
   jobs: Job[];
   lastScan?: ScanRecord;
   todos: Todo[];
-  profile: Pick<Profile, "skills" | "keywords"> & { cvFileName?: string; cvHash?: string; cvText?: string };
+  /** Research of the employers on the board, by companyKey(). */
+  companies: Record<string, CompanyInfo>;
+  profile: Pick<Profile, "skills" | "keywords" | "onboarding"> & { cvFileName?: string; cvHash?: string; cvText?: string };
 }
 
 /** The profile as the settings page edits it: the CV text is only previewed. */

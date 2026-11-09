@@ -14,7 +14,7 @@ import {
   type WorkMode,
 } from "@/lib/types";
 import type { ProfileView } from "@/lib/view";
-import { api } from "./Board";
+import { api } from "./api";
 
 /** Text fields hold the comma-separated lists while the user types. */
 interface Form {
@@ -124,16 +124,17 @@ export function Settings() {
 
   return (
     <>
-      <div className="topbar">
-        <Link href="/" className="logo">
+      <header className="topbar">
+        <Link href="/" className="brand">
+          <img src="/icon.svg" alt="" width={24} height={24} />
           Job<span>Deck</span>
         </Link>
         <span className="muted">Ustawienia</span>
         <span className="spacer" />
         <Link className="btn" href="/">
-          ← Tablica
+          ← Wróć
         </Link>
-      </div>
+      </header>
       <div className="page">
         <div className="panel">
           <h2>Twoje CV</h2>
