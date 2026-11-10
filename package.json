@@ -2,6 +2,7 @@
   "name": "tropiciel",
   "version": "0.1.0",
   "private": true,
+  "license": "AGPL-3.0-or-later",
   "description": "Osobisty tracker szukania pracy w IT: oferty z polskich portali i LinkedIna na tablicy kanban, ocena dopasowania do CV przez Claude'a (MCP).",
   "scripts": {
     "dev": "next dev -H 127.0.0.1 -p 3100",
