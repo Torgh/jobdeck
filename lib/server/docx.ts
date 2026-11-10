@@ -37,7 +37,7 @@ export async function markdownToDocx(md: string, title: string): Promise<Uint8Ar
   }
   const doc = new Document({
     title,
-    creator: "JobDeck",
+    creator: "Tropiciel",
     styles: { default: { document: { run: { font: FONT, size: 21 } } } },
     sections: [{ properties: { page: { margin: { top: 900, bottom: 900, left: 1000, right: 1000 } } }, children }],
   });

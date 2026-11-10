@@ -8,6 +8,7 @@ next-env.d.ts
 # sekrety i dane osobowe – nigdy do repo
 .env*
 !.env.example
+.tropiciel/
 .jobdeck/
 data/
 *.pdf

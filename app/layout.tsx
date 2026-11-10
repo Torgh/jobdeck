@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "JobDeck",
+  title: "Tropiciel",
   description: "Szukanie pracy w IT: oferty z portali i LinkedIna, ocena dopasowania do CV.",
   icons: { icon: "/favicon.svg" },
 };

@@ -1,4 +1,4 @@
-/** Shared data model of JobDeck: used by the board, the API routes, the scanner and the MCP server. */
+/** Shared data model of Tropiciel: used by the board, the API routes, the scanner and the MCP server. */
 
 export const SOURCES = ["linkedin", "justjoin", "nofluff", "bulldogjob", "pracuj", "protocol", "remotive", "himalayas", "other"] as const;
 export type SourceId = (typeof SOURCES)[number];
@@ -178,7 +178,7 @@ export interface Job {
   publishedAt?: string;
   /** The earliest publication date any portal reported (re-published offers keep their first date here). */
   firstPublishedAt?: string;
-  /** How many times the offer was re-published / bumped since JobDeck first saw it. */
+  /** How many times the offer was re-published / bumped since Tropiciel first saw it. */
   refreshCount?: number;
   expiresAt?: string;
   foundAt: string;

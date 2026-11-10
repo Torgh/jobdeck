@@ -229,10 +229,6 @@ textarea {
   color: var(--text);
   margin-right: 8px;
 }
-.brand span {
-  color: var(--accent);
-  margin-left: -8px;
-}
 .tabs {
   display: flex;
   gap: 2px;

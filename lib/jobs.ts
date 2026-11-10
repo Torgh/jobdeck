@@ -252,7 +252,7 @@ export function staleness(job: Pick<Job, "firstPublishedAt" | "publishedAt" | "f
   return undefined;
 }
 
-/** Portals JobDeck searches itself by phrase: only their offers are checked against the phrases again. */
+/** Portals Tropiciel searches itself by phrase: only their offers are checked against the phrases again. */
 const PHRASE_SEARCHED = new Set(["justjoin", "nofluff", "bulldogjob", "remotive", "himalayas"]);
 
 /**

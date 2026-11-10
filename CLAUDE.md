@@ -1,7 +1,8 @@
-# JobDeck
+# Tropiciel
 
 Personal job-search board (IT, Poland). Next.js 16 app (`app/`, `components/`) + Bun MCP server (`mcp/server.ts`)
-sharing one data folder (`JOBDECK_HOME`, see `lib/server/store.ts`). UI and tool output are in Polish.
+sharing one data folder (`TROPICIEL_HOME`, see `lib/server/store.ts`). UI and tool output are in Polish.
+Formerly JobDeck: `JOBDECK_HOME`, `~/.jobdeck` and the old localStorage keys are still read (`dataDirFrom`), so keep them.
 
 - Model: `lib/types.ts`. Board logic (dedupe key, filters, todos, ordering): `lib/jobs.ts`. Salaries: `lib/salary.ts`.
 - Portals: `lib/server/sources.ts` (Just Join IT, No Fluff Jobs APIs, Bulldogjob list page; opt-in: LinkedIn guest

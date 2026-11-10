@@ -90,7 +90,7 @@ export function Today({
       icon: "building",
       tone: "calm",
       title: research.length === 1 ? `Claude sprawdzi firmę ${names[0]}` : `Claude sprawdzi ${research.length} ${research.length % 10 >= 2 && research.length % 10 <= 4 && (research.length % 100 < 12 || research.length % 100 > 14) ? "firmy" : "firm"}`,
-      sub: `${research.length > 1 ? `${names.join(", ")} – ` : ""}przy najbliższym „co nowego w JobDeck?” (opinie, czym się zajmują)`,
+      sub: `${research.length > 1 ? `${names.join(", ")} – ` : ""}przy najbliższym „co nowego w Tropicielu?” (opinie, czym się zajmują)`,
     });
   }
   if (fresh.length) {
@@ -101,7 +101,7 @@ export function Today({
       tone: "good",
       title: `Zdecyduj o ${fresh.length} ${fresh.length === 1 ? "nowej ofercie" : "nowych ofertach"}`,
       sub: unrated
-        ? `${unrated} bez oceny – napisz w Claude „oceń nowe oferty w JobDeck”`
+        ? `${unrated} bez oceny – napisz w Claude „oceń nowe oferty w Tropicielu”`
         : good
           ? `${good} z oceną 65+`
           : "Wszystkie ocenione",
@@ -303,7 +303,7 @@ function LearnPanel({ plan }: { plan?: BoardData["learningPlan"] }) {
         </Link>
       </div>
       {!items.length ? (
-        <p className="muted small">Gdy Claude oceni kilkanaście ofert, napisz „zrób plan nauki z braków w JobDeck”.</p>
+        <p className="muted small">Gdy Claude oceni kilkanaście ofert, napisz „zrób plan nauki z braków w Tropicielu”.</p>
       ) : next ? (
         <>
           <p className="learn-next">Następne: {next.skill}</p>

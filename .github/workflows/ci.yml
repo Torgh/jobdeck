@@ -1,5 +1,5 @@
 # Every pull request and every push to main: the same checks as `bun run check`, as separate steps so a failure
-# names what broke. Personal data never reaches CI: the tests use a temporary JOBDECK_HOME.
+# names what broke. Personal data never reaches CI: the tests use a temporary TROPICIEL_HOME.
 name: CI
 
 on:
@@ -53,9 +53,9 @@ jobs:
       - name: Testy
         run: bun run test
         env:
-          JOBDECK_HOME: ${{ runner.temp }}/jobdeck
+          TROPICIEL_HOME: ${{ runner.temp }}/tropiciel
 
       - name: Build
         run: bun run build
         env:
-          JOBDECK_HOME: ${{ runner.temp }}/jobdeck
+          TROPICIEL_HOME: ${{ runner.temp }}/tropiciel

@@ -5,16 +5,25 @@ import path from "node:path";
 import { DEFAULT_PROFILE, type Db, type Profile } from "../types";
 
 /**
- * Everything lives in one folder (JOBDECK_HOME, ~/.jobdeck by default), outside the repo:
+ * Everything lives in one folder (TROPICIEL_HOME, ~/.tropiciel by default), outside the repo:
  *   jobs.json     offers + scan log
  *   profile.json  search settings + CV text
  *   cv/           the uploaded CV file
  * The web app and the MCP server both read and write it, so every write takes a lock file.
  */
 export function dataDir(): string {
-  const dir = process.env.JOBDECK_HOME || path.join(os.homedir(), ".jobdeck");
+  const dir = dataDirFrom(process.env, os.homedir(), fs.existsSync);
   fs.mkdirSync(path.join(dir, "cv"), { recursive: true });
   return dir;
+}
+
+/** The app was called JobDeck before: its variable and its default folder still work, so no data is lost. */
+export function dataDirFrom(env: Record<string, string | undefined>, home: string, exists: (p: string) => boolean): string {
+  if (env.TROPICIEL_HOME) return env.TROPICIEL_HOME;
+  if (env.JOBDECK_HOME) return env.JOBDECK_HOME;
+  const dir = path.join(home, ".tropiciel");
+  const legacy = path.join(home, ".jobdeck");
+  return !exists(dir) && exists(legacy) ? legacy : dir;
 }
 
 const file = (name: string) => path.join(dataDir(), name);
@@ -48,7 +57,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Cross-process lock: one writer at a time across the web app, the MCP server and the scan script. */
 async function withLock<T>(fn: () => T | Promise<T>): Promise<T> {
-  const lock = file("jobdeck.lock");
+  const lock = file("tropiciel.lock");
   for (let i = 0; ; i++) {
     try {
       fs.writeFileSync(lock, String(process.pid), { flag: "wx" });
@@ -60,7 +69,7 @@ async function withLock<T>(fn: () => T | Promise<T>): Promise<T> {
       } catch {
         /* removed meanwhile */
       }
-      if (i > 400) throw new Error("JobDeck: dane są zablokowane przez inny proces, spróbuj ponownie.");
+      if (i > 400) throw new Error("Tropiciel: dane są zablokowane przez inny proces, spróbuj ponownie.");
       await sleep(25);
     }
   }

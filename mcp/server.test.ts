@@ -6,7 +6,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /** Starts the real MCP server (bun) on an empty data folder and drives it like Claude would. */
-const home = fs.mkdtempSync(path.join(os.tmpdir(), "jobdeck-mcp-"));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), "tropiciel-mcp-"));
 const client = new Client({ name: "test", version: "1" });
 
 async function call(name: string, args: Record<string, unknown> = {}): Promise<string> {
@@ -21,7 +21,7 @@ beforeAll(async () => {
     new StdioClientTransport({
       command: process.platform === "win32" ? "bun.exe" : "bun",
       args: [path.join(__dirname, "server.ts")],
-      env: { ...(process.env as Record<string, string>), JOBDECK_HOME: home },
+      env: { ...(process.env as Record<string, string>), TROPICIEL_HOME: home },
     }),
   );
 }, 30_000);
@@ -31,7 +31,7 @@ afterAll(async () => {
   fs.rmSync(home, { recursive: true, force: true });
 });
 
-describe("JobDeck MCP server", () => {
+describe("Tropiciel MCP server", () => {
   it("lists its tools", async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
