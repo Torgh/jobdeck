@@ -15,7 +15,7 @@ import { Icon, Logo, ScoreRing } from "./ui";
 const COLUMNS: Status[] = ["interesting", "applying", "applied", "interview", "offer"];
 /** The list shows the stages closest to a job first. */
 const GROUPS: Status[] = ["offer", "interview", "applied", "applying", "interesting"];
-const VIEW_KEY = "jobdeck.pipelineView";
+const VIEW_KEY = "tropiciel.pipelineView";
 
 const HINT: Partial<Record<Status, string>> = {
   interesting: "Oferty oznaczone w Skrzynce jako ciekawe",
@@ -43,7 +43,7 @@ export function Pipeline({ jobs, skills, cvHash, companies, pay, onUpdate, onRel
   const [layout, setLayout] = useState<"list" | "kanban">("list");
   useEffect(() => {
     try {
-      if (localStorage.getItem(VIEW_KEY) === "kanban") setTimeout(() => setLayout("kanban"), 0);
+      if ((localStorage.getItem(VIEW_KEY) ?? localStorage.getItem("jobdeck.pipelineView")) === "kanban") setTimeout(() => setLayout("kanban"), 0);
     } catch {
       /* storage blocked */
     }

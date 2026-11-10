@@ -49,7 +49,7 @@ export function Market() {
               </button>
             ))}
           </div>
-          <span className="muted small">Z ofert zebranych przez JobDeck (Twoje frazy i filtry) – nie cały rynek.</span>
+          <span className="muted small">Z ofert zebranych przez Tropiciela (Twoje frazy i filtry) – nie cały rynek.</span>
         </div>
 
         {error && <p className="error">{error}</p>}
@@ -113,7 +113,7 @@ export function Market() {
             </section>
             <p className="muted small">
               Widełki: środek przedziału z każdej oferty, w PLN miesięcznie (stawki godzinowe × 168, waluty po kursie NBP). Pasek to środkowa połowa ofert (25.–75. percentyl), kropka – mediana.
-              Poziomy z co najmniej 3 ofertami. Szczegółową interpretację da Claude: <i>„co mówi rynek w JobDeck?”</i>
+              Poziomy z co najmniej 3 ofertami. Szczegółową interpretację da Claude: <i>„co mówi rynek w Tropicielu?”</i>
             </p>
           </>
         )}
@@ -378,7 +378,7 @@ function LearningSection({ plan, hasGaps, onChange }: { plan: LearningPlan | nul
         <p className="muted">
           {hasGaps ? (
             <>
-              Napisz w Claude: <i>„zrób plan nauki z braków w JobDeck”</i>. Wybierze 3–5 najczęstszych braków i do każdego zaproponuje mały projekt, który pokażesz w CV, oraz sprawdzone materiały.
+              Napisz w Claude: <i>„zrób plan nauki z braków w Tropicielu”</i>. Wybierze 3–5 najczęstszych braków i do każdego zaproponuje mały projekt, który pokażesz w CV, oraz sprawdzone materiały.
             </>
           ) : (
             "Plan powstanie z braków, które Claude wskaże w ocenach ofert – najpierw poproś o ocenę nowych ofert."

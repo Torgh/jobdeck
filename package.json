@@ -1,5 +1,5 @@
 {
-  "name": "jobdeck",
+  "name": "tropiciel",
   "version": "0.1.0",
   "private": true,
   "description": "Osobisty tracker szukania pracy w IT: oferty z polskich portali i LinkedIna na tablicy kanban, ocena dopasowania do CV przez Claude'a (MCP).",

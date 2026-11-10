@@ -88,7 +88,7 @@ export function Timeline({ job, onChanged }: { job: Job; onChanged: () => void }
         <p className="muted small">
           {job.status === "new" || job.status === "interesting"
             ? "Tu pojawi się przebieg rekrutacji."
-            : "Claude uzupełni historię z odpowiedzi w Gmailu przy „co nowego w JobDeck?”."}
+            : "Claude uzupełni historię z odpowiedzi w Gmailu przy „co nowego w Tropicielu?”."}
         </p>
       )}
     </section>

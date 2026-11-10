@@ -134,7 +134,7 @@ export function NegotiationBox({ job, pay, onUpdate }: { job: Job; pay: B2bSetti
         ))
       )}
       <p className="muted small">
-        Liczby tylko z ofert zebranych przez JobDeck (180 dni). Pełny plan rozmowy, argumenty z Twojego CV i odpowiedź na „ile Pan/Pani oczekuje?” przygotuje Claude: <i>„pomóż mi negocjować ofertę {job.id}”</i>.
+        Liczby tylko z ofert zebranych przez Tropiciela (180 dni). Pełny plan rozmowy, argumenty z Twojego CV i odpowiedź na „ile Pan/Pani oczekuje?” przygotuje Claude: <i>„pomóż mi negocjować ofertę {job.id}”</i>.
       </p>
     </section>
   );

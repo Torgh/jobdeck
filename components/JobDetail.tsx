@@ -201,7 +201,7 @@ export function JobDetail({ job, mode, skills, cvHash, companies, pay, onUpdate,
               </>
             ) : (
               <p className="muted small">
-                Napisz w Claude: <i>„oceń ofertę {job.id} w JobDeck”</i> albo <i>„oceń nowe oferty”</i>.
+                Napisz w Claude: <i>„oceń ofertę {job.id} w Tropicielu”</i> albo <i>„oceń nowe oferty”</i>.
               </p>
             )}
           </section>
@@ -271,7 +271,7 @@ function CompanyBox({ company, job }: { company?: CompanyInfo; job: Job }) {
         <h3>{job.company}</h3>
         <p className="muted small">
           {ACTIVE.includes(job.status)
-            ? "Claude sprawdzi tę firmę (czym się zajmuje, opinie z GoWork, Glassdoor, Reddita) przy najbliższym „co nowego w JobDeck?” – albo napisz: „sprawdź firmę " + job.company + "”."
+            ? "Claude sprawdzi tę firmę (czym się zajmuje, opinie z GoWork, Glassdoor, Reddita) przy najbliższym „co nowego w Tropicielu?” – albo napisz: „sprawdź firmę " + job.company + "”."
             : "Oznacz ofertę jako Ciekawą, a Claude sprawdzi firmę i opinie pracowników."}
         </p>
       </section>

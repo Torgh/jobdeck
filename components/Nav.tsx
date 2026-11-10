@@ -29,7 +29,7 @@ export function TopNav({
     <header className="topbar">
       <Link href="/" className="brand" onClick={onTab ? (e) => (e.preventDefault(), onTab("today")) : undefined}>
         <img src="/icon.svg" alt="" width={28} height={28} />
-        Job<span>Deck</span>
+        Tropiciel
       </Link>
       <nav className="nav" aria-label="Główne">
         {APP_TABS.map((t) => {

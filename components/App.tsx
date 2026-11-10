@@ -15,7 +15,7 @@ import { Today, todayCount } from "./Today";
 import { Icon } from "./ui";
 
 type Tab = AppTab;
-const TAB_KEY = "jobdeck.tab";
+const TAB_KEY = "tropiciel.tab";
 
 export function App() {
   const { data, error, setError, load, update, undo, undoLast, dismissUndo } = useBoard();
@@ -34,7 +34,7 @@ export function App() {
     const job = params.get("job");
     if (job) setTimeout(() => setLinkedId(job), 0);
     try {
-      saved ??= localStorage.getItem(TAB_KEY);
+      saved ??= localStorage.getItem(TAB_KEY) ?? localStorage.getItem("jobdeck.tab");
     } catch {
       /* storage blocked */
     }
@@ -144,7 +144,7 @@ export function App() {
             empty={
               <div className="empty-state">
                 <p>Brak nowych ofert.</p>
-                <p className="muted small">{data.lastScan ? `Ostatni skan ${agoTime(data.lastScan.at)}.` : "Jeszcze nie było skanu."} Napisz w Claude „co nowego w JobDeck?” albo kliknij Skanuj.</p>
+                <p className="muted small">{data.lastScan ? `Ostatni skan ${agoTime(data.lastScan.at)}.` : "Jeszcze nie było skanu."} Napisz w Claude „co nowego w Tropicielu?” albo kliknij Skanuj.</p>
               </div>
             }
           />
@@ -174,7 +174,7 @@ function Onboarding({ data, onScan, scanning, onSaved }: { data: BoardData; onSc
   const steps: { done: boolean; title: string; body: React.ReactNode; manual?: "alerts" | "gmail" }[] = [
     { done: !!data.profile.cvFileName, title: "Wgraj CV", body: <><Link href="/settings">Ustawienia → Twoje CV</Link> (PDF z tekstem albo DOCX).</> },
     { done: data.profile.keywords.length > 0, title: "Ustaw frazy i preferencje", body: <>Frazy (np. „java, kotlin”), miasta, poziom, widełki – w <Link href="/settings">Ustawieniach</Link>.</> },
-    { done: data.profile.skills.length > 0, title: "Umiejętności z CV", body: <>Napisz w Claude: <i>„wyciągnij umiejętności z mojego CV do JobDeck”</i>.</> },
+    { done: data.profile.skills.length > 0, title: "Umiejętności z CV", body: <>Napisz w Claude: <i>„wyciągnij umiejętności z mojego CV do Tropiciela”</i>.</> },
     {
       done: !!ob.alerts,
       manual: "alerts",
@@ -190,7 +190,7 @@ function Onboarding({ data, onScan, scanning, onSaved }: { data: BoardData; onSc
           <button className="link" onClick={onScan} disabled={scanning || !data.profile.keywords.length}>
             {scanning ? "Skanuję…" : "Skanuj teraz"}
           </button>{" "}
-          albo napisz w Claude: <i>„co nowego w JobDeck?”</i>
+          albo napisz w Claude: <i>„co nowego w Tropicielu?”</i>
         </>
       ),
     },

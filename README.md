@@ -2,7 +2,7 @@
   <img src="public/icon.svg" alt="" width="96" height="96">
 </p>
 
-<h1 align="center">JobDeck</h1>
+<h1 align="center">Tropiciel</h1>
 
 <p align="center">
   Osobisty tracker szukania pracy w IT – oferty z polskich portali na jednej tablicy,<br>
@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Torgh/jobdeck/actions/workflows/ci.yml"><img src="https://github.com/Torgh/jobdeck/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Torgh/tropiciel/actions/workflows/ci.yml"><img src="https://github.com/Torgh/tropiciel/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
 ---
@@ -42,17 +42,17 @@ Wymaga [Bun](https://bun.sh) i Node 20.9+.
 
 ```bash
 bun install
-cp .env.example .env.local     # ustaw JOBDECK_HOME – folder na dane (domyślnie ~/.jobdeck)
+cp .env.example .env.local     # ustaw TROPICIEL_HOME – folder na dane (domyślnie ~/.tropiciel)
 bun run dev                    # http://127.0.0.1:3100
 ```
 
 Serwer MCP dla Claude Code:
 
 ```bash
-claude mcp add --scope user jobdeck -e JOBDECK_HOME=<folder z danymi> -- <ścieżka do bun> <repo>/mcp/server.ts
+claude mcp add --scope user tropiciel -e TROPICIEL_HOME=<folder z danymi> -- <ścieżka do bun> <repo>/mcp/server.ts
 ```
 
-Dane (oferty, profil, CV) są w `JOBDECK_HOME`, poza repozytorium; nic osobistego nie trafia do gita.
+Dane (oferty, profil, CV) są w `TROPICIEL_HOME`, poza repozytorium; nic osobistego nie trafia do gita.
 
 ### Pierwsze kroki
 
@@ -62,7 +62,7 @@ Ekran **Dziś** prowadzi przez nie listą „Zacznij tutaj”:
 2. Ustaw frazy (np. `java, kotlin`), poziom, umowę, minimalne widełki i wykluczenia. **Tryb pracy i miasta**
    ustawiasz osobno: praca zdalna zawsze z całej Polski, a hybryda i praca stacjonarna – każda z własną listą miast
    (np. hybryda tylko Wrocław).
-3. Poproś Claude: „wyciągnij umiejętności z mojego CV do JobDeck”. Uzupełni listę umiejętności, z której liczony
+3. Poproś Claude: „wyciągnij umiejętności z mojego CV do Tropiciela”. Uzupełni listę umiejętności, z której liczony
    jest szybki wskaźnik „% technologii” na kartach.
 4. Nowe oferty z LinkedIna i Pracuj.pl wysyłasz Claude'owi jako **zrzut ekranu** (alert, lista wyników, oferta)
    albo **link** – poczty nie trzeba podłączać.
@@ -77,7 +77,7 @@ follow-upem, rozmową, negocjacjami i planem nauki. Usuwasz je tym samym panelem
 ## Jak używać (co 2 dni)
 
 1. Uruchom tablicę: `bun run dev` i otwórz http://127.0.0.1:3100.
-2. W Claude Code napisz: **„co nowego w JobDeck?”**. Claude:
+2. W Claude Code napisz: **„co nowego w Tropicielu?”**. Claude:
    - skanuje portale od ostatniego skanu,
    - dodaje oferty z wysłanych zrzutów ekranu i linków (albo z alertów w Gmailu, jeśli go podłączysz),
    - zapisuje odpowiedzi od firm (zrzuty maili albo Gmail) i przesuwa karty,
@@ -97,7 +97,7 @@ Skan bez Claude'a: przycisk **Skanuj** w nagłówku albo `bun run scan` (np. z H
 | Remotive, Himalayas | opcjonalnie: praca zdalna z zagranicy, tylko oferty otwarte dla Polski / Europy (domyślnie wyłączone) |
 | LinkedIn | **link** (Claude sam czyta publiczną stronę oferty, `add_job_links`) albo **zrzut ekranu** alertu / listy (`add_jobs`); opcjonalnie publiczna wyszukiwarka (domyślnie wyłączona) |
 | Pracuj.pl, theprotocol.it | **zrzut ekranu** oferty lub listy (`add_jobs`) – te portale blokują automaty, więc ich linki nie są pobierane |
-| dowolny link | wklej go Claude'owi: „dodaj tę ofertę do JobDeck” (`add_job_links`, dane oferty ze strony) |
+| dowolny link | wklej go Claude'owi: „dodaj tę ofertę do Tropiciela” (`add_job_links`, dane oferty ze strony) |
 | Gmail (opcjonalnie) | alerty e-mail z LinkedIna i Pracuj.pl, jeśli podłączysz Gmail w Claude |
 
 Oferta ze zrzutu bez widocznego linku prowadzi do wyszukiwania; gdy później wyślesz jej link albo zrzut opisu,
@@ -142,7 +142,7 @@ jako nieaktualne.
   od rekrutera). Ekran Dziś pokazuje, kiedy maile były sprawdzane ostatnio.
 - **Follow-up** – po 7 dniach ciszy panel oferty podpowiada przypomnienie: gotowy szkic (PL/EN, neutralny
   płciowo) do skopiowania albo otwarcia w poczcie, potem „Zapisz jako wysłane”. Po 2 przypomnieniach bez odpowiedzi
-  JobDeck proponuje zamknięcie.
+  Tropiciel proponuje zamknięcie.
 - **Przygotowanie do rozmowy** – w kolumnie Rozmowy: „przygotuj mnie do rozmowy <id>”. Claude zapisuje dokument
   z pytaniami technicznymi, Twoimi przykładami (STAR), pytaniami do firmy i kwotą do podania (PDF / DOCX).
 - **Negocjacje** – na etapie Rozmowy / Oferta panel porównuje propozycję firmy z widełkami, rynkiem dla poziomu
@@ -162,16 +162,16 @@ Zakładka **Rynek**: co mówią zebrane oferty (30 / 90 dni / wszystko) –
 
 - widełki według poziomu (B2B netto i UoP brutto: mediana i środkowa połowa ofert) na tle Twojego minimum,
 - najczęściej wymagane technologie, z wyróżnieniem tych, których nie ma w CV,
-- braki, które Claude najczęściej wskazuje w ocenach, i **plan nauki**: „zrób plan nauki z braków w JobDeck” –
+- braki, które Claude najczęściej wskazuje w ocenach, i **plan nauki**: „zrób plan nauki z braków w Tropicielu” –
   3–5 najczęstszych braków, do każdego mały projekt do CV i materiały, z odhaczaniem,
 - **Twój lejek**: wybrane → wysłane → odpowiedź → rozmowa → oferta, odsetek odpowiedzi i rozmów, typowy czas do
   odpowiedzi, aplikacje bez odpowiedzi od 14+ dni i wysłane aplikacje tydzień po tygodniu,
 - źródła: ile ofert, jak pasują, ile kończy się aplikacją i rozmową.
 
-Claude ma narzędzie `get_market_insights`: „co mówi rynek w JobDeck?”. To tylko oferty zebrane przez JobDeck
+Claude ma narzędzie `get_market_insights`: „co mówi rynek w Tropicielu?”. To tylko oferty zebrane przez Tropiciela
 (Twoje frazy i filtry), nie cały rynek.
 
-**Oferty-widma**: JobDeck pamięta najwcześniejszą datę publikacji i liczy ponowne publikacje. Oferta wystawiana od
+**Oferty-widma**: Tropiciel pamięta najwcześniejszą datę publikacji i liczy ponowne publikacje. Oferta wystawiana od
 45+ dni jest oznaczona „⏳”, a od 90 dni (albo 45 dni i co najmniej 2 odświeżenia) – jako **możliwa oferta-widmo**,
 z radą, żeby przed aplikacją zapytać, czy rekrutacja trwa.
 

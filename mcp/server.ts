@@ -1,9 +1,9 @@
 /**
- * JobDeck MCP server: Claude Code / Claude Desktop scans the job portals, rates offers against the
+ * Tropiciel MCP server: Claude Code / Claude Desktop scans the job portals, rates offers against the
  * user's CV and moves cards on the board, using the user's own subscription (no API key).
- * It reads and writes the same data folder as the web app (JOBDECK_HOME), so the board updates live.
+ * It reads and writes the same data folder as the web app (TROPICIEL_HOME), so the board updates live.
  *
- *   claude mcp add --scope user jobdeck -e JOBDECK_HOME=<data dir> -- <path-to-bun> <repo>/mcp/server.ts
+ *   claude mcp add --scope user tropiciel -e TROPICIEL_HOME=<data dir> -- <path-to-bun> <repo>/mcp/server.ts
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -42,7 +42,7 @@ import {
   type Profile,
 } from "../lib/types";
 
-const INSTRUCTIONS = `JobDeck is the user's job-search board (IT jobs in Poland). Offers are cards in columns:
+const INSTRUCTIONS = `Tropiciel is the user's job-search board (IT jobs in Poland). Offers are cards in columns:
 new → interesting → applying → applied → interview → offer, plus closed (with a reason). The user watches the board live
 (http://127.0.0.1:3100), so make changes with the tools instead of only describing them. Refer to offers by job_id.
 
@@ -127,7 +127,7 @@ Negotiation (interview / offer stage), when the user asks about money or gets an
 - Give the user: the figure to name (and a walk-away minimum), 2–3 arguments from their CV and the market, phrasing in
   Polish for "jakie są Pana/Pani oczekiwania?" and for a counter-offer, and what else to negotiate (B2B: paid days off,
   notice period, equipment, rate review; UoP: bonus, 50% KUP for creative work, remote, training budget).
-- Say that the market numbers cover only offers JobDeck collected. Never invent other companies' offers.
+- Say that the market numbers cover only offers Tropiciel collected. Never invent other companies' offers.
 
 Learning plan (save_learning_plan), when the user asks what to learn or the plan is missing / older than ~2 months:
 - From get_market_insights: the recurring gaps and the most requested skills missing from the CV, weighted towards
@@ -170,11 +170,11 @@ and the description, then to applied once sent (it records the date). Use next_s
 Market (get_market_insights): when the user asks what the market says, what to learn, what to ask for or which
 portals are worth it – interpret the numbers: where their expectation sits against the medians for their level,
 which missing skills recur in good offers (and how hard each would be to show), which sources lead to interviews.
-It covers only the offers JobDeck collected (their keywords and filters), not the whole market – say so.
+It covers only the offers Tropiciel collected (their keywords and filters), not the whole market – say so.
 
 Answer in the user's language (Polish). The board UI is in Polish.`;
 
-const server = new McpServer({ name: "jobdeck", title: "JobDeck", version: "0.4.0" }, { instructions: INSTRUCTIONS });
+const server = new McpServer({ name: "tropiciel", title: "Tropiciel", version: "0.4.0" }, { instructions: INSTRUCTIONS });
 
 type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
 
@@ -265,7 +265,7 @@ function negotiationText(j: Job): string {
   const rows = negotiation(j, bands, { minMonthly: profile.minMonthlyPln });
   if (!rows.length) return "\n## Negocjacje\nBrak widełek i za mało ofert z widełkami – zapytaj użytkownika o propozycję firmy (update_job offered) i użyj compare_pay.";
   return [
-    "\n## Negocjacje (rynek z ofert JobDeck, 180 dni)",
+    "\n## Negocjacje (rynek z ofert Tropiciela, 180 dni)",
     ...rows.map((n) =>
       [
         `${n.contract === "b2b" ? "B2B netto" : "UoP brutto"}:`,
@@ -480,7 +480,7 @@ server.registerTool(
   "import_cv",
   {
     title: "Import CV from a file",
-    description: "Loads the user's CV from a local file (PDF, DOCX, TXT, MD) into JobDeck, replacing the previous one. The user can also upload it in the app (Ustawienia).",
+    description: "Loads the user's CV from a local file (PDF, DOCX, TXT, MD) into Tropiciel, replacing the previous one. The user can also upload it in the app (Ustawienia).",
     inputSchema: { path: z.string().describe("Absolute path to the CV file.") },
   },
   tool(async ({ path: p }: { path: string }) => {
@@ -857,7 +857,7 @@ server.registerTool(
       ...ins.sources.map((s) => `- ${SOURCE_LABEL[s.source]}: ${s.offers} / ${s.rated} / ${s.avgFit ?? "–"} / ${s.good} / ${s.picked} / ${s.applied} / ${s.interviews}`),
       funnelText(),
       learningText(readDb().learningPlan),
-      "\nTylko oferty zebrane przez JobDeck (frazy i filtry użytkownika) – nie cały rynek. Wykresy: http://127.0.0.1:3100/insights",
+      "\nTylko oferty zebrane przez Tropiciela (frazy i filtry użytkownika) – nie cały rynek. Wykresy: http://127.0.0.1:3100/insights",
     ]
       .filter(Boolean)
       .join("\n");
