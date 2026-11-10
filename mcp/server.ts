@@ -17,7 +17,7 @@ import { b2bEquivalent, b2bNet, formatOnHand, onHandRange, paySettings, TAX_FORM
 import { formatSalary, parseSalaryText } from "../lib/salary";
 import { saveCv } from "../lib/server/cv";
 import { addJobs, scan } from "../lib/server/ingest";
-import { jobWithDescription, logEvents, patchJobs, rateJobs, saveCompany, saveDocument, saveLearningPlan } from "../lib/server/jobOps";
+import { jobWithDescription, logEvents, patchJobs, rateJobs, refilterInbox, saveCompany, saveDocument, saveLearningPlan } from "../lib/server/jobOps";
 import { readDb, readProfile, updateProfile } from "../lib/server/store";
 import {
   CLOSED_LABEL,
@@ -812,6 +812,28 @@ server.registerTool(
       funnelText(),
       learningText(readDb().learningPlan),
       "\nTylko oferty zebrane przez JobDeck (frazy i filtry użytkownika) – nie cały rynek. Wykresy: http://127.0.0.1:3100/insights",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }),
+);
+
+server.registerTool(
+  "refilter_inbox",
+  {
+    title: "Re-filter the inbox",
+    description:
+      "Checks the new offers against the current filters (search phrases in the title or skill tags, contract, level, work mode and cities, salary) – e.g. after the user changed the profile. Without apply it lists what does not fit; with apply it removes those offers (only untouched scan results: no star, notes, history or documents). Ask the user before apply.",
+    inputSchema: { apply: z.boolean().optional().describe("Remove them (default: only list).") },
+  },
+  tool(async ({ apply }: { apply?: boolean }) => {
+    const found = await refilterInbox(!!apply);
+    if (!found.length) return "Wszystkie nowe oferty pasują do obecnych filtrów.";
+    return [
+      `${apply ? "Usunięto" : "Nie pasuje do filtrów"}: ${found.length} nowych ofert.`,
+      ...found.slice(0, 60).map(({ job, reason }) => `- ${job.title} @ ${job.company}: ${reason}`),
+      found.length > 60 ? `…i ${found.length - 60} więcej.` : "",
+      apply ? "" : "Usunąć je? (refilter_inbox apply: true – po zgodzie użytkownika)",
     ]
       .filter(Boolean)
       .join("\n");

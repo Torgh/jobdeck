@@ -98,6 +98,12 @@ Skan bez Claude'a: przycisk **Skanuj** w nagłówku albo `bun run scan` (np. z H
 | Pracuj.pl, theprotocol.it | **alerty e-mail** → Claude czyta je w Gmailu (`add_jobs`); te portale blokują automaty |
 | dowolny link | wklej go Claude'owi: „dodaj tę ofertę do JobDeck” |
 
+Skan przepuszcza tylko oferty zgodne z Twoimi ustawieniami: **tytuł** (albo tagi technologii) musi zawierać
+którąś z fraz – w tej kolejności, np. „head of engineering” pasuje też do „Head of Software Engineering” – bo
+wyszukiwarki portali są bardzo luźne; do tego **umowa**, poziom, tryb pracy i miasta, widełki, wykluczenia, a oferty
+zdalne z siedzibą za granicą odpadają (poza Remotive / Himalayas). Po zmianie ustawień `bun run refilter`
+(albo Claude: `refilter_inbox`) pokazuje nowe oferty, które już nie pasują, i na żądanie je usuwa.
+
 Ta sama oferta znaleziona na kilku portalach to jedna karta z kilkoma linkami. Wynagrodzenia są przeliczane
 na PLN miesięcznie (stawka godzinowa × 168, waluty po kursie NBP), z oznaczeniem B2B / UoP.
 
