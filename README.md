@@ -192,3 +192,9 @@ bun run demo         # dane testowe na tablicę (bun run demo:clear – usunięc
 - **CI** (GitHub Actions) uruchamia typecheck, lint, testy i build przy każdym PR i pushu do `main`.
 - **Dependabot** co tydzień proponuje aktualizacje zależności i akcji GitHub (drobne zgrupowane w jeden PR).
 - PR-y idą do `main`; po merge'u GitHub sam usuwa gałąź.
+
+## Licencja
+
+[GNU Affero General Public License v3.0](LICENSE) lub nowsza (`AGPL-3.0-or-later`). Możesz używać, zmieniać
+i rozpowszechniać kod, ale zmienioną wersję – także udostępnioną innym jako usługa przez sieć – musisz opublikować
+na tej samej licencji, z kodem źródłowym.
