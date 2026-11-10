@@ -103,6 +103,12 @@ Skan bez Claude'a: przycisk **Skanuj** w nagłówku albo `bun run scan` (np. z H
 Oferta ze zrzutu bez widocznego linku prowadzi do wyszukiwania; gdy później wyślesz jej link albo zrzut opisu,
 karta się uzupełni.
 
+Skan przepuszcza tylko oferty zgodne z Twoimi ustawieniami: **tytuł** (albo tagi technologii) musi zawierać
+którąś z fraz – w tej kolejności, np. „head of engineering” pasuje też do „Head of Software Engineering” – bo
+wyszukiwarki portali są bardzo luźne; do tego **umowa**, poziom, tryb pracy i miasta, widełki, wykluczenia, a oferty
+zdalne z siedzibą za granicą odpadają (poza Remotive / Himalayas). Po zmianie ustawień `bun run refilter`
+(albo Claude: `refilter_inbox`) pokazuje nowe oferty, które już nie pasują, i na żądanie je usuwa.
+
 Ta sama oferta znaleziona na kilku portalach to jedna karta z kilkoma linkami. Wynagrodzenia są przeliczane
 na PLN miesięcznie (stawka godzinowa × 168, waluty po kursie NBP), z oznaczeniem B2B / UoP.
 
@@ -171,7 +177,7 @@ z radą, żeby przed aplikacją zapytać, czy rekrutacja trwa.
 
 ## Narzędzia MCP
 
-`get_overview`, `scan_portals`, `add_jobs`, `add_job_links`, `list_jobs`, `get_job`, `rate_jobs`, `save_company_research`,
+`get_overview`, `scan_portals`, `add_jobs`, `add_job_links`, `list_jobs`, `get_job`, `rate_jobs`, `save_company_research`, `refilter_inbox`,
 `log_events`, `save_document`, `get_document`, `compare_pay`, `get_market_insights`, `save_learning_plan`,
 `update_job`, `get_profile`, `update_profile`, `import_cv`.
 

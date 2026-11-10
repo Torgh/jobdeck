@@ -38,7 +38,7 @@ export interface IngestResult {
  * Puts offers on the board: new ones go to "Nowe", ones already there (from another portal or an
  * earlier scan) only gain the extra link and any data they were missing.
  */
-export function ingest(db: Db, inputs: JobInput[], profile: Profile, rates: Record<string, number>, opts: { force?: boolean } = {}): IngestResult {
+export function ingest(db: Db, inputs: JobInput[], profile: Profile, rates: Record<string, number>, opts: { force?: boolean; keywords?: string[] } = {}): IngestResult {
   const now = new Date().toISOString();
   const byKey = new Map(Object.values(db.jobs).map((j) => [j.key, j]));
   const byUrl = new Map(Object.values(db.jobs).flatMap((j) => j.links.map((l) => [l.url, j] as const)));
@@ -85,7 +85,7 @@ export function ingest(db: Db, inputs: JobInput[], profile: Profile, rates: Reco
       res.merged++;
       continue;
     }
-    const reason = opts.force ? undefined : filterReason({ ...input, salaries }, profile);
+    const reason = opts.force ? undefined : filterReason({ ...input, salaries }, profile, { keywords: opts.keywords });
     if (reason) {
       res.skipped.push({ title: input.title, company: input.company, reason });
       continue;
@@ -113,6 +113,7 @@ export function ingest(db: Db, inputs: JobInput[], profile: Profile, rates: Reco
       publishedAt: input.publishedAt,
       firstPublishedAt: earliest(input.firstPublishedAt, input.publishedAt),
       expiresAt: input.expiresAt,
+      abroad: input.abroad || undefined,
       foundAt: now,
       updatedAt: now,
       status: "new",
@@ -175,7 +176,7 @@ export async function scan(opts: ScanOptions = {}): Promise<ScanResult> {
     const newJobs: Job[] = [];
     let skipped = 0;
     for (const s of perSource) {
-      const r = ingest(db, s.found, profile, rates);
+      const r = ingest(db, s.found, profile, rates, { keywords });
       newJobs.push(...r.added);
       skipped += r.skipped.length;
       results.push({ source: s.id, found: s.found.length, added: r.added.length, error: s.error });

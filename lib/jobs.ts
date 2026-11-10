@@ -1,6 +1,6 @@
 import { followUpState, MAX_FOLLOW_UPS } from "./followup";
 import { bestMonthly } from "./salary";
-import type { CompanyInfo, Job, JobInput, Profile, Seniority, Status, WorkMode } from "./types";
+import { ABROAD, type CompanyInfo, type Job, type JobInput, type Profile, type Seniority, type Status, type WorkMode } from "./types";
 
 /** Lowercase, no Polish diacritics, no punctuation. */
 export function fold(s: string): string {
@@ -71,9 +71,48 @@ export function citiesFor(profile: Pick<Profile, "locations" | "modeLocations">,
   return profile.modeLocations?.[mode] ?? profile.locations;
 }
 
-/** Why an offer should not even reach the board, or undefined to keep it. */
-export function filterReason(input: JobInput, profile: Profile): string | undefined {
+const KEYWORD_FILLER = new Set(["of", "and", "the", "for", "in", "i", "w", "z", "dla"]);
+
+/**
+ * Whether the offer is about one of the search phrases: every word of some phrase is in the title or the skill
+ * tags. Portal search is full-text and loose ("engineering manager" also returns "Senior Data Engineer").
+ */
+export function matchesKeywords(input: Pick<JobInput, "title" | "skills" | "niceSkills">, keywords: string[]): boolean {
+  const words = (s: string) => fold(s).split(" ").filter((w) => w && !KEYWORD_FILLER.has(w));
+  const phrases = keywords.map(words).filter((p) => p.length);
+  if (!phrases.length) return true;
+  const title = words(input.title);
+  const tags = [...(input.skills ?? []), ...(input.niceSkills ?? [])].map((t) => words(t).join(" "));
+  return phrases.some((p) => inOrder(title, p) || tags.includes(p.join(" ")));
+}
+
+/** Words that may sit inside a phrase in a title: "Head of Software Engineering" is a "head of engineering". */
+const PHRASE_MODIFIERS = new Set(["software", "platform", "technology", "tech", "product", "it", "senior", "sr"]);
+
+/** The phrase's words appear in the title in order, next to each other or split only by PHRASE_MODIFIERS. */
+function inOrder(title: string[], phrase: string[]): boolean {
+  for (let start = 0; start < title.length; start++) {
+    if (title[start] !== phrase[0]) continue;
+    let i = start + 1;
+    let k = 1;
+    while (k < phrase.length && i < title.length) {
+      if (title[i] === phrase[k]) k++;
+      else if (!PHRASE_MODIFIERS.has(title[i])) break;
+      i++;
+    }
+    if (k === phrase.length) return true;
+  }
+  return false;
+}
+
+/**
+ * Why an offer should not even reach the board, or undefined to keep it. `keywords` (the scan's phrases) also
+ * checks that the offer is really about them; offers added by hand or from e-mail alerts skip that check.
+ */
+export function filterReason(input: JobInput, profile: Profile, opts: { keywords?: string[] } = {}): string | undefined {
   const title = fold(input.title);
+  if (opts.keywords && !matchesKeywords(input, opts.keywords)) return "tytuł nie pasuje do fraz";
+  if (input.abroad && !ABROAD.includes(input.source)) return `poza Polską (${input.location ?? "?"})`;
   for (const word of profile.excludeKeywords) {
     const w = fold(word);
     if (w && ` ${title} `.includes(` ${w} `)) return `wykluczone słowo „${word}”`;
@@ -94,6 +133,11 @@ export function filterReason(input: JobInput, profile: Profile): string | undefi
     if (lists.length && !lists.some((l) => !l.length) && !anywhere && !lists.flat().some((c) => loc.includes(fold(c)))) {
       return `lokalizacja ${input.location}${input.workMode ? ` (${input.workMode})` : ""}`;
     }
+  }
+  // Contract: skipped only when the offer names its contracts and none is one the user accepts.
+  const named = (input.salaries ?? []).map((s) => s.contract).filter((c): c is "b2b" | "uop" | "uz" => c === "b2b" || c === "uop" || c === "uz");
+  if (profile.contracts.length && named.length && !named.some((c) => profile.contracts.includes(c))) {
+    return `umowa ${[...new Set(named)].map((c) => c.toUpperCase()).join("/")}`;
   }
   if (profile.minMonthlyPln && input.salaries?.length) {
     const best = bestMonthly(input.salaries);
@@ -206,4 +250,22 @@ export function staleness(job: Pick<Job, "firstPublishedAt" | "publishedAt" | "f
   }
   if (days >= 45) return { days, level: "old", text: `Wystawiana od ${days} dni${again}` };
   return undefined;
+}
+
+/** Portals JobDeck searches itself by phrase: only their offers are checked against the phrases again. */
+const PHRASE_SEARCHED = new Set(["justjoin", "nofluff", "bulldogjob", "remotive", "himalayas"]);
+
+/**
+ * New offers the current filters would not let in (e.g. after the filters got stricter): untouched scan results
+ * only – no star, notes, history or documents, not test data.
+ */
+export function inboxMismatches(jobs: Job[], profile: Profile): { job: Job; reason: string }[] {
+  const out: { job: Job; reason: string }[] = [];
+  for (const j of jobs) {
+    if (j.status !== "new" || j.demo || j.starred || j.notes || j.events?.length || j.documents) continue;
+    const input: JobInput = { ...j, salaries: j.salaries };
+    const reason = filterReason(input, profile, { keywords: PHRASE_SEARCHED.has(j.source) ? profile.keywords : undefined });
+    if (reason) out.push({ job: j, reason });
+  }
+  return out;
 }

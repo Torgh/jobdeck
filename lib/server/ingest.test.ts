@@ -74,6 +74,22 @@ describe("source mappers", () => {
     ]);
   });
 
+  it("keeps every city of a Just Join IT offer and flags offers outside Poland", () => {
+    const base = { slug: "s", title: "Engineering Manager", companyName: "Acme", workplaceType: "remote" };
+    const multi = mapJustJoin({
+      ...base,
+      city: "Warszawa",
+      locations: [
+        { city: "Warszawa", latitude: 52.23, longitude: 21.01 },
+        { city: "Wrocław", latitude: 51.11, longitude: 17.03 },
+      ],
+    });
+    expect(multi).toMatchObject({ location: "Warszawa, Wrocław", abroad: false });
+    expect(mapJustJoin({ ...base, city: "Monachium", latitude: 48.14, longitude: 11.58 }).abroad).toBe(true);
+    expect(mapJustJoin({ ...base, city: "Lisbon", locations: [{ city: "Lisbon", latitude: "38.72", longitude: "-9.14" }] }).abroad).toBe(true);
+    expect(mapJustJoin({ ...base, city: "Kraków" }).abroad).toBe(false);
+  });
+
   it("maps No Fluff Jobs postings", () => {
     const j = mapNoFluff({
       id: "x",
