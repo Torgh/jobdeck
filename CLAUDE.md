@@ -6,8 +6,10 @@ sharing one data folder (`JOBDECK_HOME`, see `lib/server/store.ts`). UI and tool
 - Model: `lib/types.ts`. Board logic (dedupe key, filters, todos, ordering): `lib/jobs.ts`. Salaries: `lib/salary.ts`.
 - Portals: `lib/server/sources.ts` (Just Join IT, No Fluff Jobs APIs, Bulldogjob list page; opt-in: LinkedIn guest
   search, Remotive and Himalayas – Remotive's terms: link back, at most a few requests a day).
-  Pracuj.pl / theprotocol.it block automated requests: their offers come from e-mail alerts via `add_jobs`. Do not add
-  scrapers that work around a portal's blocking.
+  Pracuj.pl / theprotocol.it block automated requests: their offers come from the user's screenshots (Claude reads
+  them → `add_jobs`, link optional → `searchLink`) or e-mail alerts. Pasted links: `add_job_links` → `offerFromLink`
+  (LinkedIn guest job page or JSON-LD JobPosting; never fetches `BLOCKED_HOSTS`). Do not add scrapers that work
+  around a portal's blocking.
 - Scan + merge: `lib/server/ingest.ts`. Every write goes through `updateDb` / `updateProfile` (cross-process lock).
 - UI: `components/App.tsx` (views, onboarding) with the shared header `Nav.tsx` → `Today.tsx` (start screen: todos with
   actions, best new offers, side stats), `Inbox.tsx` (list + detail, keyboard) and `Pipeline.tsx` (stage list or
@@ -27,5 +29,7 @@ sharing one data folder (`JOBDECK_HOME`, see `lib/server/store.ts`). UI and tool
   Interview prep is doc kind `prep`. Negotiation figures: `negotiation()` in `lib/insights.ts` (+ `job.offered`).
   Learning plan from Claude (`save_learning_plan`) in `db.learningPlan`, shown on `/insights`.
 - CI: `.github/workflows/ci.yml` runs the same steps as `bun run check` on every PR and push to main (Bun pinned
-  to the local version); Dependabot weekly. PRs target `main`; GitHub deletes the branch after merge.
+  to the local version); Dependabot weekly. PRs target `main`; GitHub deletes the branch after merge. The repo is
+  public; ruleset `protect-main` (as in TripDeck): `main` only via PR with the CI check green, no force-push or
+  deletion (admins may bypass).
 - `bun run check` before committing. Personal data (CV, offers) never goes into the repo.

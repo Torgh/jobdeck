@@ -2,7 +2,7 @@ import { filterReason, jobKey, stackMatch } from "../jobs";
 import { FALLBACK_RATES, normalizeSalary } from "../salary";
 import { SCANNABLE, type Db, type Job, type JobInput, type Profile, type ScanRecord, type ScanSourceResult, type SourceId } from "../types";
 import { fetchJson } from "./http";
-import { SOURCE_IMPL } from "./sources";
+import { isSearchLink, SOURCE_IMPL } from "./sources";
 import { newId, readDb, readProfile, updateDb } from "./store";
 
 let ratesCache: { day: string; rates: Record<string, number> } | undefined;
@@ -50,7 +50,18 @@ export function ingest(db: Db, inputs: JobInput[], profile: Profile, rates: Reco
     const existing = byUrl.get(input.url) ?? byKey.get(key);
     const salaries = (input.salaries ?? []).map((s) => normalizeSalary(s, rates));
     if (existing) {
+      // A card added from a screenshot links to a search until the real offer link arrives.
+      if (isSearchLink(existing.url) && !isSearchLink(input.url)) {
+        existing.links = existing.links.filter((l) => l.url !== existing.url);
+        existing.url = input.url;
+        existing.source = input.source;
+        existing.externalId ??= input.externalId;
+      }
       if (!existing.links.some((l) => l.url === input.url || l.source === input.source)) existing.links.push({ source: input.source, url: input.url });
+      if (!existing.description && input.description) {
+        existing.description = input.description;
+        existing.descriptionFetchedAt = now;
+      }
       if (!existing.salaries.length && salaries.length) existing.salaries = salaries;
       if (!existing.skills.length && input.skills?.length) {
         existing.skills = input.skills;

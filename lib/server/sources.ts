@@ -248,30 +248,168 @@ const linkedin: Source = {
     return out;
   },
   async details(job) {
-    const html = await fetchText(`https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${enc(job.externalId ?? "")}`);
-    const body = html.match(/show-more-less-html__markup[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
-    const criteria = [...html.matchAll(/description__job-criteria-subheader[^>]*>([\s\S]*?)<\/h3>[\s\S]*?description__job-criteria-text[^>]*>([\s\S]*?)<\/span>/g)]
-      .map((m) => `${htmlToText(m[1])}: ${htmlToText(m[2])}`)
-      .join("\n");
-    return [htmlToText(body), criteria].filter(Boolean).join("\n\n");
+    return linkedInDescription(await fetchText(linkedInPostingUrl(job.externalId ?? "")));
   },
 };
+
+const linkedInPostingUrl = (id: string) => `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${enc(id)}`;
+
+function linkedInDescription(html: string): string {
+  const body = html.match(/show-more-less-html__markup[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
+  const criteria = [...html.matchAll(/description__job-criteria-subheader[^>]*>([\s\S]*?)<\/h3>[\s\S]*?description__job-criteria-text[^>]*>([\s\S]*?)<\/span>/g)]
+    .map((m) => `${htmlToText(m[1])}: ${htmlToText(m[2])}`)
+    .join("\n");
+  return [htmlToText(body), criteria].filter(Boolean).join("\n\n");
+}
+
+/** One offer from LinkedIn's public job page (the guest view, no login). */
+export function parseLinkedInPosting(html: string, id: string): JobInput | undefined {
+  const title = attr(html, /top-card-layout__title[^>]*>([\s\S]*?)<\/h[12]>/);
+  const company = attr(html, /topcard__org-name-link[^>]*>([\s\S]*?)<\/a>/);
+  if (!title || !company) return undefined;
+  const location = attr(html, /class="topcard__flavor topcard__flavor--bullet"[^>]*>([\s\S]*?)<\/span>/);
+  const salaryText = attr(html, /compensation__salary[^>]*>([\s\S]*?)<\/div>/);
+  const salary = salaryText ? parseSalaryText(salaryText) : undefined;
+  const description = linkedInDescription(html);
+  return {
+    title,
+    company,
+    url: `https://www.linkedin.com/jobs/view/${id}`,
+    externalId: id,
+    source: "linkedin",
+    location,
+    workMode: workModeFrom(`${title} ${location ?? ""}`),
+    seniority: seniorityFrom(title),
+    salaries: salary ? [salary] : [],
+    skills: [],
+    description: description || undefined,
+  };
+}
+
+// ───────────────────────────── a link the user pasted ─────────────────────────────
+
+/** LinkedIn job id from its job links (jobs/view, comm/jobs/view, a search with currentJobId). */
+export function linkedInJobId(url: string): string | undefined {
+  if (!/linkedin\.com/i.test(url)) return undefined;
+  return (
+    url.match(/\/jobs\/view\/(?:[^/?#]*-)?(\d{6,})/)?.[1] ??
+    url.match(/[?&](?:currentJobId|jobId)=(\d{6,})/)?.[1] ??
+    url.match(/jobPosting[:/](\d{6,})/)?.[1]
+  );
+}
+
+/** Portals that refuse automated requests: their offers come from the user (screenshot, pasted text), never fetched. */
+export const BLOCKED_HOSTS = /(^|\.)(pracuj\.pl|theprotocol\.it)$/i;
+
+const HOST_SOURCE: [RegExp, SourceId][] = [
+  [/(^|\.)justjoin\.it$/i, "justjoin"],
+  [/(^|\.)nofluffjobs\.com$/i, "nofluff"],
+  [/(^|\.)bulldogjob\.pl$/i, "bulldogjob"],
+  [/(^|\.)remotive\.com$/i, "remotive"],
+  [/(^|\.)himalayas\.app$/i, "himalayas"],
+];
+
+interface LdPlace {
+  address?: { addressLocality?: string } | string;
+}
+export interface LdPosting {
+  "@type"?: string | string[];
+  title?: string;
+  description?: string;
+  datePosted?: string;
+  validThrough?: string;
+  jobLocationType?: string;
+  hiringOrganization?: { name?: string } | string;
+  jobLocation?: LdPlace | LdPlace[];
+  baseSalary?: { currency?: string; value?: { minValue?: number; maxValue?: number; value?: number; unitText?: string } };
+}
+
+/** The schema.org JobPosting a job page embeds (most portals and career sites do). */
+export function ldPosting(html: string): LdPosting | undefined {
+  for (const m of html.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      const data = JSON.parse(m[1]);
+      const list: LdPosting[] = Array.isArray(data) ? data : data["@graph"] ?? [data];
+      const posting = list.find((d) => [d?.["@type"]].flat().includes("JobPosting"));
+      if (posting) return posting;
+    } catch {
+      /* not JSON */
+    }
+  }
+  return undefined;
+}
+
+const LD_PERIOD: Record<string, string> = { HOUR: "/h", DAY: "/dzień", MONTH: "/mies.", YEAR: "/rok" };
+const isoDate = (s: string | undefined) => (s && !Number.isNaN(Date.parse(s)) ? new Date(s).toISOString() : undefined);
+
+/** An offer from a job page's JobPosting data. */
+export function offerFromLd(p: LdPosting, url: string, source: SourceId): JobInput | undefined {
+  const org = typeof p.hiringOrganization === "string" ? p.hiringOrganization : p.hiringOrganization?.name;
+  const title = p.title ? decodeEntities(p.title).trim() : undefined;
+  if (!title || !org) return undefined;
+  const places = [p.jobLocation ?? []].flat().map((l) => (typeof l.address === "string" ? l.address : l.address?.addressLocality));
+  const location = [...new Set(places.filter((x): x is string => !!x))].join(", ") || undefined;
+  const v = p.baseSalary?.value;
+  const lo = v?.minValue ?? v?.value;
+  const hi = v?.maxValue ?? lo;
+  const unit = LD_PERIOD[(v?.unitText ?? "MONTH").toUpperCase()] ?? "";
+  const salary = lo != null && p.baseSalary?.currency ? parseSalaryText(`${lo}–${hi} ${p.baseSalary.currency} ${unit}`) : undefined;
+  return {
+    title,
+    company: decodeEntities(org).trim(),
+    url,
+    source,
+    location,
+    workMode: p.jobLocationType === "TELECOMMUTE" ? "remote" : workModeFrom(`${title} ${location ?? ""}`),
+    seniority: seniorityFrom(title),
+    salaries: salary ? [salary] : [],
+    skills: [],
+    description: p.description ? htmlToText(decodeEntities(p.description)) : undefined,
+    publishedAt: isoDate(p.datePosted),
+    expiresAt: isoDate(p.validThrough),
+  };
+}
+
+export type LinkResult = { ok: true; job: JobInput } | { ok: false; url: string; reason: string };
+
+/**
+ * One offer from a link the user pasted: LinkedIn's public job page (one request, the same one the board makes for
+ * the description), or the JobPosting data of any other job page. Portals that block automated requests
+ * (Pracuj.pl, theprotocol.it) are never fetched – the user sends a screenshot instead.
+ */
+export async function offerFromLink(raw: string): Promise<LinkResult> {
+  let u: URL;
+  try {
+    u = new URL(raw.trim());
+  } catch {
+    return { ok: false, url: raw, reason: "to nie jest poprawny link" };
+  }
+  const fail = (reason: string): LinkResult => ({ ok: false, url: raw, reason });
+  try {
+    const liId = linkedInJobId(u.href);
+    if (liId) {
+      const job = parseLinkedInPosting(await fetchText(linkedInPostingUrl(liId)), liId);
+      return job ? { ok: true, job } : fail("LinkedIn nie pokazuje tej oferty bez logowania (wygasła?) – wyślij zrzut ekranu");
+    }
+    if (/(^|\.)linkedin\.com$/i.test(u.hostname)) return fail("w linku nie ma numeru oferty (otwórz ofertę i skopiuj jej link)");
+    if (BLOCKED_HOSTS.test(u.hostname)) return fail("ten portal blokuje automatyczne pobieranie – wyślij zrzut ekranu oferty");
+    u.hash = "";
+    const source = HOST_SOURCE.find(([re]) => re.test(u.hostname))?.[1] ?? "other";
+    const posting = ldPosting(await fetchText(u.href));
+    const job = posting && offerFromLd(posting, u.href, source);
+    return job ? { ok: true, job } : fail("strona nie podaje danych oferty – wyślij zrzut ekranu");
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : String(e));
+  }
+}
 
 // ───────────────────────────── any page ─────────────────────────────
 
 /** Description from a job page: the schema.org JobPosting most portals embed, else the page text. */
 export async function pageDescription(url: string): Promise<string> {
   const html = await fetchText(url);
-  for (const m of html.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
-    try {
-      const data = JSON.parse(m[1]);
-      const list = Array.isArray(data) ? data : data["@graph"] ?? [data];
-      const posting = list.find((d: { "@type"?: string }) => d?.["@type"] === "JobPosting");
-      if (posting?.description) return htmlToText(String(posting.description));
-    } catch {
-      /* not JSON */
-    }
-  }
+  const posting = ldPosting(html);
+  if (posting?.description) return htmlToText(String(posting.description));
   const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html.match(/<body[\s\S]*<\/body>/i)?.[0] ?? html;
   return htmlToText(main).slice(0, 20_000);
 }
@@ -449,11 +587,26 @@ const himalayas: Source = {
 
 /**
  * Portals the scanner searches itself. Pracuj.pl and theprotocol.it block automated requests, so their
- * offers come in through the e-mail alerts that Claude reads (add_jobs), like LinkedIn's.
+ * offers come in through Claude (add_jobs): from e-mail alerts, or from screenshots and links the user sends.
  */
 export const SOURCE_IMPL: Partial<Record<SourceId, Source>> = { justjoin, nofluff, bulldogjob, linkedin, remotive, himalayas };
 
+/**
+ * Where to look for an offer known only from a screenshot (no link visible): the portal's search for its title and
+ * company, or a web search. The card links there until a real link is added.
+ */
+export function searchLink(title: string, company: string, source: SourceId): string {
+  const q = enc(`${title} ${company}`);
+  return source === "linkedin"
+    ? `https://www.linkedin.com/jobs/search/?keywords=${q}&location=Poland`
+    : `https://www.google.com/search?q=${q}`;
+}
+
+export const isSearchLink = (url: string) => /linkedin\.com\/jobs\/search\/|google\.com\/search\?/i.test(url);
+
 export async function jobDescription(job: Pick<Job, "url" | "externalId" | "source">): Promise<string> {
+  if (isSearchLink(job.url)) throw new Error("oferta dodana ze zrzutu, bez linku – wyślij zrzut lub tekst jej treści");
+  if (BLOCKED_HOSTS.test(new URL(job.url).hostname)) throw new Error("portal blokuje automatyczne pobieranie – wyślij zrzut lub tekst treści");
   const impl = SOURCE_IMPL[job.source];
   const text = impl && job.externalId ? await impl.details(job) : await pageDescription(job.url);
   return text.slice(0, 20_000);
