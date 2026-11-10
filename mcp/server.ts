@@ -16,8 +16,10 @@ import { citiesFor, compareJobs, companyResearch, seniorityFrom, staleness, todo
 import { b2bEquivalent, b2bNet, formatOnHand, onHandRange, paySettings, TAX_FORM_LABEL, uopNet, ZUS_LABEL, type B2bSettings } from "../lib/pay";
 import { formatSalary, parseSalaryText } from "../lib/salary";
 import { saveCv } from "../lib/server/cv";
+import { pause } from "../lib/server/http";
 import { addJobs, scan } from "../lib/server/ingest";
 import { jobWithDescription, logEvents, patchJobs, rateJobs, refilterInbox, saveCompany, saveDocument, saveLearningPlan } from "../lib/server/jobOps";
+import { linkedInJobId, offerFromLink, searchLink } from "../lib/server/sources";
 import { readDb, readProfile, updateProfile } from "../lib/server/store";
 import {
   CLOSED_LABEL,
@@ -48,19 +50,34 @@ Routine ("co nowego?", run every second day or so):
 1. get_overview – what is new, unrated, and what needs a follow-up.
 2. scan_portals – Just Join IT, No Fluff Jobs and Bulldogjob (plus, if the user turned them on, LinkedIn's public search
    and the remote boards from abroad Remotive and Himalayas – only offers open to Poland / Europe), since the last scan.
-3. LinkedIn & Pracuj.pl / theprotocol.it e-mail alerts – the main way their offers arrive (those portals block automated
-   searches; never try to get around that). With Gmail tools, search the alerts since the last scan
-   (from:jobalerts-noreply@linkedin.com OR from:jobs-listings@linkedin.com, from:pracuj.pl, from:theprotocol.it),
-   read each offer's title, company, location and link, and add them with add_jobs (source linkedin / pracuj).
-   Use the canonical link (https://www.linkedin.com/jobs/view/<id>) and the id as external_id. Never invent offers.
-   No Gmail tools? Tell the user once that connecting Gmail lets you read the alerts.
+3. LinkedIn & Pracuj.pl / theprotocol.it – those portals block automated searches; never try to get around that.
+   Their offers come from the user (see "Offers from the user" below) or, only if Gmail tools are connected, from
+   their e-mail alerts since the last scan (from:jobalerts-noreply@linkedin.com OR from:jobs-listings@linkedin.com,
+   from:pracuj.pl, from:theprotocol.it): read each offer's title, company, location and link and add them with add_jobs.
+   No Gmail tools? Do not suggest connecting the mailbox – the user may keep it away from the agent on purpose. Ask
+   instead for screenshots or links of new offers (LinkedIn alerts, job lists, Pracuj.pl).
 4. Rate the new offers against the CV (below), then give the user a short ranked summary: the best ones first with
    one line each on why, and what you set aside. Move clear mismatches to closed (not_for_me) only if the user agrees,
    or when they asked you to triage.
 5. Research the employers get_overview lists under "Sprawdź firmę" (offers the user marked as interesting or further).
-6. Replies from employers (Gmail): see "Mail" below.
+6. Replies from employers (Gmail, or screenshots of them): see "Mail" below.
 
-Mail – replies from employers (log_events), when you have Gmail tools:
+Offers from the user (screenshots, links, pasted text) – no mailbox needed:
+- Links (LinkedIn job links, Just Join IT, No Fluff Jobs, company career pages…): add_job_links reads each one itself
+  (title, company, location, salary, description). It does not fetch Pracuj.pl / theprotocol.it: for those, and for
+  links it could not read, ask the user for a screenshot of the offer.
+- Screenshots (an e-mail alert, a LinkedIn / Pracuj.pl result list, one offer's page): read every offer visible in the
+  image – title, company, location, work mode, salary as written, skills, and the description if it is shown – and add
+  them with add_jobs (source linkedin / pracuj / protocol / other, by what the screenshot shows). Pass the url only when
+  it is visible; without it the card links to a search for the offer. Only what the image shows: never guess a
+  company, salary or link that is cut off or unreadable – say what you skipped. If the screenshot shows a LinkedIn
+  job id or link, prefer add_job_links.
+- A later screenshot or link of an offer already on the board (same title and company) completes that card: add it
+  again with add_jobs / add_job_links – the real link replaces the search link and a missing description is filled in.
+- Then rate the new offers as in step 4.
+
+Mail – replies from employers (log_events), from Gmail tools or from screenshots of e-mails the user sends (then do
+not pass checked_until, the mailbox was not checked):
 - get_overview lists the applications to watch and the date the mailbox was last checked. Search from that date
   (minus a day) for each company's name and domain, and for recruiting systems that send on their behalf
   (greenhouse, lever, workable, teamtailor, smartrecruiters, recruitee, personio, erecruiter, pracuj.pl "Twoja aplikacja",
@@ -501,14 +518,14 @@ server.registerTool(
   "add_jobs",
   {
     title: "Add offers",
-    description: "Adds offers found elsewhere (LinkedIn / Pracuj.pl e-mail alerts, a link the user pasted). Duplicates of cards already on the board are merged. Offers the profile filters out are skipped unless force is true.",
+    description: "Adds offers you read yourself: from a screenshot the user sent, pasted text, or LinkedIn / Pracuj.pl e-mail alerts. (For bare links use add_job_links.) Duplicates of cards already on the board are merged and fill in what they lack (real link, description). Offers the profile filters out are skipped unless force is true.",
     inputSchema: {
       jobs: z
         .array(
           z.object({
             title: z.string(),
             company: z.string(),
-            url: z.string().url(),
+            url: z.string().url().optional().describe("The offer's link, only if you have it (a screenshot often has none): the card then links to a search for the offer."),
             source: z.enum(SOURCES),
             external_id: z.string().optional().describe("LinkedIn job id (the number in /jobs/view/<id>)."),
             location: z.string().optional(),
@@ -524,17 +541,17 @@ server.registerTool(
     },
   },
   tool(async ({ jobs, force }: { jobs: {
-    title: string; company: string; url: string; source: Job["source"]; external_id?: string; location?: string;
+    title: string; company: string; url?: string; source: Job["source"]; external_id?: string; location?: string;
     work_mode?: Job["workMode"]; salary_text?: string; skills?: string[]; description?: string; published_at?: string;
   }[]; force?: boolean }) => {
     const r = await addJobs(
       jobs.map((j) => {
         const salary = j.salary_text ? parseSalaryText(j.salary_text) : undefined;
-        const liId = j.url.match(/linkedin\.com\/(?:comm\/)?jobs\/view\/(?:[^/?]*-)?(\d+)/)?.[1];
+        const liId = (j.url && linkedInJobId(j.url)) ?? (j.source === "linkedin" && /^\d{6,}$/.test(j.external_id ?? "") ? j.external_id : undefined);
         return {
           title: j.title,
           company: j.company,
-          url: liId ? `https://www.linkedin.com/jobs/view/${liId}` : j.url,
+          url: liId ? `https://www.linkedin.com/jobs/view/${liId}` : j.url ?? searchLink(j.title, j.company, j.source),
           source: j.source,
           externalId: j.external_id ?? liId,
           location: j.location,
@@ -552,6 +569,35 @@ server.registerTool(
       `Dodano ${r.added.length}, scalono z istniejącymi ${r.merged}, pominięto ${r.skipped.length}.`,
       ...r.added.map((j) => `+ ${oneLine(j)}`),
       ...r.skipped.map((s) => `– ${s.title} @ ${s.company}: ${s.reason}`),
+    ].join("\n");
+  }),
+);
+
+server.registerTool(
+  "add_job_links",
+  {
+    title: "Add offers from links",
+    description:
+      "Adds offers from links the user pasted: reads each page itself (LinkedIn's public job page, or the job data other portals and career pages embed) – title, company, location, salary, description. Pracuj.pl / theprotocol.it are not fetched (they block automated requests): ask for a screenshot. Duplicates are merged; offers the profile filters out are skipped unless force is true.",
+    inputSchema: {
+      urls: z.array(z.string()).min(1).max(20),
+      force: z.boolean().optional().describe("Add even if the profile filters would skip them (the user explicitly wants them)."),
+    },
+  },
+  tool(async ({ urls, force }: { urls: string[]; force?: boolean }) => {
+    const read: Awaited<ReturnType<typeof offerFromLink>>[] = [];
+    for (const [i, url] of [...new Set(urls)].entries()) {
+      if (i) await pause(1500); // gentle: one page at a time
+      read.push(await offerFromLink(url));
+    }
+    const found = read.flatMap((x) => (x.ok ? [x.job] : []));
+    const failed = read.flatMap((x) => (x.ok ? [] : [x]));
+    const r = found.length ? await addJobs(found, { force }) : { added: [], merged: 0, skipped: [] };
+    return [
+      `Odczytano ${found.length} z ${read.length} linków. Dodano ${r.added.length}, scalono z istniejącymi ${r.merged}, pominięto ${r.skipped.length}.`,
+      ...r.added.map((j) => `+ ${oneLine(j)}`),
+      ...r.skipped.map((s) => `– ${s.title} @ ${s.company}: ${s.reason}`),
+      ...failed.map((f) => `✗ ${f.url}: ${f.reason}`),
     ].join("\n");
   }),
 );

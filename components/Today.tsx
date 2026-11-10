@@ -122,7 +122,9 @@ export function Today({
         <h1 className="today-title">{headline}</h1>
         <p className="today-sub">
           {last ? `Ostatni skan ${agoTime(last.at)}: ${last.added} nowych ofert. ` : "Jeszcze nie było skanu. "}
-          {data.mailCheckedAt ? `Odpowiedzi z Gmaila sprawdzone ${agoTime(data.mailCheckedAt)}.` : "Odpowiedzi z Gmaila jeszcze niesprawdzone – napisz w Claude „co nowego w JobDeck?”."}
+          {data.mailCheckedAt
+            ? `Odpowiedzi z Gmaila sprawdzone ${agoTime(data.mailCheckedAt)}.`
+            : "Oferty z LinkedIn i Pracuj.pl oraz odpowiedzi pracodawców: wyślij w Claude zrzut ekranu albo link."}
         </p>
 
         {demo > 0 && <DemoBanner count={demo} onRemoved={onReload} />}

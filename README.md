@@ -64,7 +64,8 @@ Ekran **Dziś** prowadzi przez nie listą „Zacznij tutaj”:
    (np. hybryda tylko Wrocław).
 3. Poproś Claude: „wyciągnij umiejętności z mojego CV do JobDeck”. Uzupełni listę umiejętności, z której liczony
    jest szybki wskaźnik „% technologii” na kartach.
-4. Na LinkedInie ustaw alerty ofert pracy (codziennie, e-mail), to samo na Pracuj.pl.
+4. Nowe oferty z LinkedIna i Pracuj.pl wysyłasz Claude'owi jako **zrzut ekranu** (alert, lista wyników, oferta)
+   albo **link** – poczty nie trzeba podłączać.
 
 ### Dane testowe
 
@@ -78,8 +79,8 @@ follow-upem, rozmową, negocjacjami i planem nauki. Usuwasz je tym samym panelem
 1. Uruchom tablicę: `bun run dev` i otwórz http://127.0.0.1:3100.
 2. W Claude Code napisz: **„co nowego w JobDeck?”**. Claude:
    - skanuje portale od ostatniego skanu,
-   - czyta alerty z LinkedIna i Pracuj.pl w Gmailu (jeśli podłączysz Gmail w Claude) i dodaje oferty,
-   - sprawdza odpowiedzi od firm i przesuwa karty,
+   - dodaje oferty z wysłanych zrzutów ekranu i linków (albo z alertów w Gmailu, jeśli go podłączysz),
+   - zapisuje odpowiedzi od firm (zrzuty maili albo Gmail) i przesuwa karty,
    - ocenia nowe oferty względem CV (0–100, mocne strony, braki) i sprawdza firmy, które Cię zainteresowały,
    - podaje krótkie podsumowanie najlepszych ofert i przypomina o follow-upach.
 3. Na ekranie **Dziś** odhaczasz to, co ważne: decyzje w Skrzynce, przygotowanie do rozmowy, follow-upy.
@@ -94,9 +95,13 @@ Skan bez Claude'a: przycisk **Skanuj** w nagłówku albo `bun run scan` (np. z H
 | No Fluff Jobs | skan przez publiczne API |
 | Bulldogjob | skan listy ofert według technologii (pierwsze słowo frazy, np. „Kotlin”) |
 | Remotive, Himalayas | opcjonalnie: praca zdalna z zagranicy, tylko oferty otwarte dla Polski / Europy (domyślnie wyłączone) |
-| LinkedIn | **alerty e-mail** → Claude czyta je w Gmailu (`add_jobs`); opcjonalnie publiczna wyszukiwarka (domyślnie wyłączona) |
-| Pracuj.pl, theprotocol.it | **alerty e-mail** → Claude czyta je w Gmailu (`add_jobs`); te portale blokują automaty |
-| dowolny link | wklej go Claude'owi: „dodaj tę ofertę do JobDeck” |
+| LinkedIn | **link** (Claude sam czyta publiczną stronę oferty, `add_job_links`) albo **zrzut ekranu** alertu / listy (`add_jobs`); opcjonalnie publiczna wyszukiwarka (domyślnie wyłączona) |
+| Pracuj.pl, theprotocol.it | **zrzut ekranu** oferty lub listy (`add_jobs`) – te portale blokują automaty, więc ich linki nie są pobierane |
+| dowolny link | wklej go Claude'owi: „dodaj tę ofertę do JobDeck” (`add_job_links`, dane oferty ze strony) |
+| Gmail (opcjonalnie) | alerty e-mail z LinkedIna i Pracuj.pl, jeśli podłączysz Gmail w Claude |
+
+Oferta ze zrzutu bez widocznego linku prowadzi do wyszukiwania; gdy później wyślesz jej link albo zrzut opisu,
+karta się uzupełni.
 
 Skan przepuszcza tylko oferty zgodne z Twoimi ustawieniami: **tytuł** (albo tagi technologii) musi zawierać
 którąś z fraz – w tej kolejności, np. „head of engineering” pasuje też do „Head of Software Engineering” – bo
@@ -130,8 +135,8 @@ jako nieaktualne.
   doświadczenie pod tę ofertę (kolejność, akcenty, słowa kluczowe z ogłoszenia, które CV faktycznie potwierdza –
   bez dopisywania niczego) i krótki, konkretny list. W zakładce **Aplikacja**: podgląd, edycja, **PDF** (widok A4
   → „Zapisz jako PDF”), **DOCX** i kopiowanie tekstu.
-- **Odpowiedzi od firm (Gmail)** – przy „co nowego?” Claude przegląda Gmaila od ostatniego sprawdzenia: maile od
-  firm, do których wysłałeś aplikację, i z systemów rekrutacyjnych (Greenhouse, Lever, Workable, Teamtailor,
+- **Odpowiedzi od firm** – wyślij Claude'owi zrzut maila od firmy albo (jeśli podłączysz Gmail) przy „co nowego?”
+  Claude sam przegląda pocztę od ostatniego sprawdzenia: maile od firm, do których wysłałeś aplikację, i z systemów rekrutacyjnych (Greenhouse, Lever, Workable, Teamtailor,
   Pracuj.pl…). Każdą wiadomość zapisuje w **historii** oferty i przesuwa kartę: zaproszenie → Rozmowy (z datą jako
   następny krok), zadanie → termin, odmowa → Zamknięte, oferta → Oferta. Sam też możesz dopisać wpis (np. telefon
   od rekrutera). Ekran Dziś pokazuje, kiedy maile były sprawdzane ostatnio.
@@ -172,7 +177,7 @@ z radą, żeby przed aplikacją zapytać, czy rekrutacja trwa.
 
 ## Narzędzia MCP
 
-`get_overview`, `scan_portals`, `add_jobs`, `list_jobs`, `get_job`, `rate_jobs`, `save_company_research`,
+`get_overview`, `scan_portals`, `add_jobs`, `add_job_links`, `list_jobs`, `get_job`, `rate_jobs`, `save_company_research`, `refilter_inbox`,
 `log_events`, `save_document`, `get_document`, `compare_pay`, `get_market_insights`, `save_learning_plan`,
 `update_job`, `get_profile`, `update_profile`, `import_cv`.
 
