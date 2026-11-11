@@ -167,11 +167,11 @@ export function App() {
 
 function Onboarding({ data, onScan, scanning, onSaved }: { data: BoardData; onScan: () => void; scanning: boolean; onSaved: () => void }) {
   const ob = data.profile.onboarding ?? {};
-  const tick = async (k: "alerts" | "gmail", v: boolean) => {
+  const tick = async (k: "alerts", v: boolean) => {
     await saveOnboarding({ ...ob, [k]: v });
     onSaved();
   };
-  const steps: { done: boolean; title: string; body: React.ReactNode; manual?: "alerts" | "gmail" }[] = [
+  const steps: { done: boolean; title: string; body: React.ReactNode; manual?: "alerts" }[] = [
     { done: !!data.profile.cvFileName, title: "Wgraj CV", body: <><Link href="/settings">Ustawienia → Twoje CV</Link> (PDF z tekstem albo DOCX).</> },
     { done: data.profile.keywords.length > 0, title: "Ustaw frazy i preferencje", body: <>Frazy (np. „java, kotlin”), miasta, poziom, widełki – w <Link href="/settings">Ustawieniach</Link>.</> },
     { done: data.profile.skills.length > 0, title: "Umiejętności z CV", body: <>Napisz w Claude: <i>„wyciągnij umiejętności z mojego CV do Tropiciela”</i>.</> },
@@ -179,9 +179,8 @@ function Onboarding({ data, onScan, scanning, onSaved }: { data: BoardData; onSc
       done: !!ob.alerts,
       manual: "alerts",
       title: "Alerty e-mail na LinkedIn i Pracuj.pl",
-      body: <>Na LinkedIn: Praca → wyszukaj → „Ustaw alert” (codziennie, e-mail). Na Pracuj.pl: „Zapisz wyszukiwanie” z powiadomieniem.</>,
+      body: <>Na LinkedIn: Praca → wyszukaj → „Ustaw alert” (codziennie, e-mail). Na Pracuj.pl: „Zapisz wyszukiwanie” z powiadomieniem. Nowe oferty z alertów wysyłasz Claude’owi jako zrzut ekranu albo link.</>,
     },
-    { done: !!ob.gmail, manual: "gmail", title: "Podłącz Gmail w Claude", body: <>Wtedy Claude czyta alerty i sam dodaje oferty z LinkedIna i Pracuj.pl.</> },
     {
       done: !!data.lastScan,
       title: "Pierwszy skan",

@@ -42,7 +42,7 @@ import {
   type Profile,
 } from "../lib/types";
 
-const INSTRUCTIONS = `Tropiciel is the user's job-search board (IT jobs in Poland). Offers are cards in columns:
+const INSTRUCTIONS = `Tropiciel is the user's job-search board (jobs in Poland – the portal scan covers IT, offers the user sends can be from any field). Offers are cards in columns:
 new → interesting → applying → applied → interview → offer, plus closed (with a reason). The user watches the board live
 (http://127.0.0.1:3100), so make changes with the tools instead of only describing them. Refer to offers by job_id.
 

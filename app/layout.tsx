@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Tropiciel",
-  description: "Szukanie pracy w IT: oferty z portali i LinkedIna, ocena dopasowania do CV.",
+  description: "Szukanie pracy: oferty z portali, LinkedIna i Pracuj.pl, ocena dopasowania do CV.",
   icons: { icon: "/favicon.svg" },
 };
 

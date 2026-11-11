@@ -5,7 +5,7 @@
 <h1 align="center">Tropiciel</h1>
 
 <p align="center">
-  Osobisty tracker szukania pracy w IT – oferty z polskich portali na jednej tablicy,<br>
+  Osobisty tracker szukania pracy – oferty z portali, LinkedIna i Pracuj.pl na jednej tablicy,<br>
   a Claude ocenia je względem Twojego CV, pilnuje odpowiedzi i pomaga w aplikacji.
 </p>
 
@@ -15,9 +15,16 @@
 
 ---
 
-Oferty z Just Join IT, No Fluff Jobs, Bulldogjob i LinkedIna trafiają na tablicę, a Claude (przez serwer MCP, na
-Twojej subskrypcji, bez klucza API) ocenia, jak bardzo pasują do Twojego CV. Działa na tej samej zasadzie co
-TripDeck: Claude pracuje przez narzędzia, a Ty na żywo widzisz zmiany w aplikacji.
+Oferty trafiają na jedną tablicę, a Claude (przez serwer MCP, na Twojej subskrypcji, bez klucza API) ocenia, jak
+bardzo pasują do Twojego CV. Działa na tej samej zasadzie co TripDeck: Claude pracuje przez narzędzia, a Ty na żywo
+widzisz zmiany w aplikacji.
+
+**Nie tylko IT.** Automatyczny skan obejmuje portale IT (Just Join IT, No Fluff Jobs, Bulldogjob), ale oferty
+z LinkedIna, Pracuj.pl, theprotocol.it czy dowolnej strony kariery dodajesz zrzutem ekranu albo linkiem – z każdej
+branży. Ocena dopasowania, research firm, dopasowane CV, follow-upy, przygotowanie do rozmowy, negocjacje
+i kalkulator „na rękę” działają tak samo dla każdego zawodu.
+
+![Ekran Dziś: rzeczy do zrobienia, najlepsze nowe oferty i stan pipeline'u](docs/zrzuty/dzis.png)
 
 ## Widoki
 
@@ -32,9 +39,15 @@ TripDeck: Claude pracuje przez narzędzia, a Ty na żywo widzisz zmiany w aplika
 - **Rynek** – widełki, technologie, braki, źródła i Twój lejek (niżej).
 - **Kalkulator** – B2B ↔ UoP „na rękę” (niżej).
 
+| Skrzynka | Pipeline (kanban) |
+|---|---|
+| ![Skrzynka: lista nowych ofert z oceną i otwarta oferta obok](docs/zrzuty/skrzynka.png) | ![Pipeline jako kanban: Ciekawe, Aplikuję, Wysłane, Rozmowy, Oferta](docs/zrzuty/kanban.png) |
+
 Panel oferty ma zakładki: **Dopasowanie**, **Oferta** (opis), **Firma** (research) i **Aplikacja** (follow-up,
 negocjacje, dokumenty, następny krok, historia, notatki). Link `http://127.0.0.1:3100/?job=<id>` otwiera
 konkretną ofertę (Claude podaje takie linki).
+
+![Panel oferty, zakładka Aplikacja: następny krok i negocjacje z kwotą do zaproponowania](docs/zrzuty/oferta.png)
 
 ## Instalacja
 
@@ -73,6 +86,7 @@ Chcesz zobaczyć tablicę w akcji, zanim zbierzesz prawdziwe oferty? **Ustawieni
 (albo `bun run demo`). Dochodzi 9 ofert fikcyjnych firm z dopiskiem „(test)” na każdym etapie – z ocenami,
 follow-upem, rozmową, negocjacjami i planem nauki. Usuwasz je tym samym panelem, banerem na ekranie Dziś albo
 `bun run demo:clear`; prawdziwe oferty, profil i CV zostają. Claude widzi je w MCP jako `[TEST]` i pomija.
+Zrzuty ekranu w tym README pokazują właśnie te dane (fikcyjne firmy).
 
 ## Jak używać (co 2 dni)
 
@@ -156,6 +170,8 @@ zdrowotną, podatek i koszty, oraz ile musi wynosić faktura, żeby dorównać d
 „≈ … na rękę”; w Skrzynce można sortować po tej kwocie. Claude ma narzędzie `compare_pay` do rozmów o stawkach.
 Przepisy na 2026 r. są w `lib/pay.ts` (`PL_2026`) – szacunek bez ulg, PPK i wspólnego rozliczenia.
 
+![Kalkulator: UoP i trzy formy B2B obok siebie, z rozbiciem na ZUS, zdrowotną i podatek](docs/zrzuty/kalkulator.png)
+
 ## Rynek
 
 Zakładka **Rynek**: co mówią zebrane oferty (30 / 90 dni / wszystko) –
@@ -170,6 +186,8 @@ Zakładka **Rynek**: co mówią zebrane oferty (30 / 90 dni / wszystko) –
 
 Claude ma narzędzie `get_market_insights`: „co mówi rynek w Tropicielu?”. To tylko oferty zebrane przez Tropiciela
 (Twoje frazy i filtry), nie cały rynek.
+
+![Rynek: lejek aplikacji, widełki według poziomu i najczęściej wymagane technologie](docs/zrzuty/rynek.png)
 
 **Oferty-widma**: Tropiciel pamięta najwcześniejszą datę publikacji i liczy ponowne publikacje. Oferta wystawiana od
 45+ dni jest oznaczona „⏳”, a od 90 dni (albo 45 dni i co najmniej 2 odświeżenia) – jako **możliwa oferta-widmo**,
