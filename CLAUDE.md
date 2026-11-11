@@ -1,6 +1,6 @@
 # Tropiciel
 
-Personal job-search board (IT, Poland). Next.js 16 app (`app/`, `components/`) + Bun MCP server (`mcp/server.ts`)
+Personal job-search board (Poland; portal scans are IT, offers from screenshots / links can be any field). Next.js 16 app (`app/`, `components/`) + Bun MCP server (`mcp/server.ts`)
 sharing one data folder (`TROPICIEL_HOME`, see `lib/server/store.ts`). UI and tool output are in Polish.
 Formerly JobDeck: `JOBDECK_HOME`, `~/.jobdeck` and the old localStorage keys are still read (`dataDirFrom`), so keep them.
 

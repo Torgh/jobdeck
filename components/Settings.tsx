@@ -265,8 +265,8 @@ export function Settings() {
         <div className="panel">
           <h2>Źródła</h2>
           <p className="hint">
-            LinkedIn i Pracuj.pl / theprotocol.it nie pozwalają na automatyczne wyszukiwanie, więc ich oferty przychodzą z <b>alertów e-mail</b>: Claude czyta je w Gmailu i dodaje na tablicę. Ustaw alerty na
-            tych portalach na ten sam adres, który podłączysz do Claude.
+            LinkedIn i Pracuj.pl / theprotocol.it nie pozwalają na automatyczne wyszukiwanie, więc ich oferty wysyłasz Claude’owi jako <b>zrzut ekranu</b> (alert,
+            lista wyników, oferta) albo <b>link</b> – Claude doda je na tablicę.
           </p>
           <div className="checks" style={{ flexDirection: "column", alignItems: "flex-start" }}>
             <label>
