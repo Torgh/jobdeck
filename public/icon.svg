@@ -1,1 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><circle cx="20" cy="20" r="13.5" fill="none" stroke="#4f46e5" stroke-width="4.5"/><path d="M30 30 42.5 42.5" stroke="#4f46e5" stroke-width="7" stroke-linecap="round"/><g fill="#4f46e5"><g transform="translate(14.2 23.6) rotate(42) scale(.82)"><ellipse cx="0" cy="-2.2" rx="2.9" ry="3.8"/><ellipse cx="0" cy="4" rx="2.1" ry="2"/></g><g transform="translate(24.6 15.4) rotate(42) scale(.82)"><ellipse cx="0" cy="-2.2" rx="2.9" ry="3.8"/><ellipse cx="0" cy="4" rx="2.1" ry="2"/></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#818cf8"/><stop offset=".5" stop-color="#4f46e5"/><stop offset="1" stop-color="#1e1b4b"/></linearGradient>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g id="background" clip-path="url(#tile)">
+    <rect width="512" height="512" fill="url(#bg)"/>
+  </g>
+  <g id="artwork">
+    <!-- Target: the job you are after. -->
+    <circle cx="288" cy="232" r="150" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="30"/>
+    <circle cx="288" cy="232" r="92" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="30"/>
+    <!-- The trail: round dots from the start point, like the route on the TripDeck logo. -->
+    <path d="M108 424C116 336 206 356 246 284" stroke="#fff" stroke-width="20" fill="none" stroke-linecap="round" stroke-dasharray="1 36"/>
+    <circle cx="108" cy="424" r="26" fill="#fff"/>
+    <!-- The pin in the bullseye (TripDeck's pin). -->
+    <ellipse cx="288" cy="234" rx="32" ry="12" fill="#1e1b4b" opacity=".35"/>
+    <path d="M288 232c0 0-56-56-56-96a56 56 0 0 1 112 0c0 40-56 96-56 96z" fill="#f97316"/>
+    <circle cx="288" cy="136" r="21" fill="#fff"/>
+  </g>
+</svg>

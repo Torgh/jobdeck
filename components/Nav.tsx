@@ -28,7 +28,7 @@ export function TopNav({
   return (
     <header className="topbar">
       <Link href="/" className="brand" onClick={onTab ? (e) => (e.preventDefault(), onTab("today")) : undefined}>
-        <img src="/icon.svg" alt="" width={28} height={28} />
+        <img src="/favicon.svg" alt="" width={28} height={28} />
         Tropiciel
       </Link>
       <nav className="nav" aria-label="Główne">
